@@ -1,23 +1,22 @@
 #!/usr/bin/python3 -I
-# Redraw U-Boot's logo, as its status-line variant when BOOT has one, on the framebuffer the console blanked.
-# tty1 output (firstboot's dialog, mount-spruce's messages) or the frontend's first frame replaces it.
-#   bootlogo.py [--check] [--image BMP]    --check converts and times it but leaves the screen alone;
-#                                           --image draws that BMP instead (the shutdown units' statuses)
+# Redraw U-Boot's logo on the framebuffer the console blanked; on the first boot, its variant with
+# "Setting up the card". tty1 output (firstboot's dialog, mount-spruce's messages) or the frontend's
+# first frame replaces it.
+#   bootlogo.py [--check]    --check converts and times it but leaves the screen alone
 import fcntl
 import os
 import struct
 import sys
 import time
 
-LOGO, FB = "/boot/logo.bmp", "/dev/fb0"
-# U-Boot's logo with a status line (make-logo.py --status); firstboot.sh is gone once the card is set up.
-STATUS = "/boot/logo-firstboot.bmp" if os.path.exists("/boot/firstboot.sh") else "/boot/logo-boot.bmp"
+LOGO, FIRSTBOOT, FB = "/boot/logo.bmp", "/boot/logo-firstboot.bmp", "/dev/fb0"
 FBIOGET_VSCREENINFO = 0x4600
 
 
-def main(check, image=None):
+def main(check):
     t0 = time.monotonic()
-    path = image or (STATUS if os.path.exists(STATUS) else LOGO)
+    # firstboot.sh is gone once the card is set up.
+    path = FIRSTBOOT if os.path.exists("/boot/firstboot.sh") and os.path.exists(FIRSTBOOT) else LOGO
     with open(path, "rb") as f:
         bmp = f.read()
     off, = struct.unpack_from("<I", bmp, 10)
@@ -44,7 +43,7 @@ def main(check, image=None):
             out[o + 2:o + bw * 4:4] = src[2::3]
             out[o + 3:o + bw * 4:4] = opaque
         if not check:
-            try:  # drop bootlogo-loading.sh's text first, so no later console redraw brings it back
+            try:  # clear the console first, so no later console redraw brings its text back
                 with open("/dev/tty1", "w") as tty:
                     tty.write("\033[H\033[2J")
             except OSError:
@@ -55,8 +54,7 @@ def main(check, image=None):
 
 
 if __name__ == "__main__":
-    argv = sys.argv[1:]
     try:
-        main("--check" in argv, argv[argv.index("--image") + 1] if "--image" in argv else None)
+        main("--check" in sys.argv[1:])
     except (OSError, ValueError, struct.error) as e:
         print(f"bootlogo: skipped, {e}", file=sys.stderr)

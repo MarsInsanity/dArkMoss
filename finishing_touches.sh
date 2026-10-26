@@ -77,9 +77,9 @@ elif [ "$UNIT" == "v10" ]; then
 else
   sudo cp logos/unrotated/dArkMoss.bmp ${mountpoint}/logo.bmp
 fi
-# bootlogo.service's redraw: that logo plus oakMOSS's status line (make-logo.py --status).
+# bootlogo.service's first-boot redraw: that logo plus "Setting up the card" (make-logo.py --status).
 if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
-  sudo cp logos/${UNIT}/logo-boot.bmp logos/${UNIT}/logo-firstboot.bmp ${mountpoint}/
+  sudo cp logos/${UNIT}/logo-firstboot.bmp ${mountpoint}/
 fi
 
 if [ -d "optional" ]; then
@@ -462,19 +462,12 @@ sudo cp scripts/welcome-message.service Arkbuild/etc/systemd/system/welcome-mess
 sudo chroot Arkbuild/ bash -c "systemctl enable welcome-message"
 # G350, Mini M, V10: the logo stays up instead of the welcome text, which would clear it. bootlogo.service
 # redraws it once the console blanks U-Boot's (upstream's image-viewer logo.service is not built).
-# The V10 boots without an initramfs, so it has no initramfs-loading hook: bootlogo-loading.service
-# prints "Loading..." from systemd's start.
 if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message"
-  sudo cp scripts/bootlogo/bootlogo.py scripts/bootlogo/bootlogo-loading.sh Arkbuild/usr/local/sbin/
-  sudo chmod 0755 Arkbuild/usr/local/sbin/bootlogo.py Arkbuild/usr/local/sbin/bootlogo-loading.sh
-  sudo cp scripts/bootlogo/bootlogo.service scripts/bootlogo/bootlogo-loading.service scripts/bootlogo/bootlogo-loading-again.service \
-    scripts/bootlogo/bootlogo-reboot.service scripts/bootlogo/bootlogo-poweroff.service Arkbuild/etc/systemd/system/
-  # bootlogo-loading: "Loading..." from systemd's start until the logo; -reboot/-poweroff: the shutdown statuses,
-  # from the rootfs because /boot may already be unmounted when they run.
-  sudo mkdir -p Arkbuild/usr/share/bootlogo
-  sudo cp logos/${UNIT}/logo-reboot.bmp logos/${UNIT}/logo-poweroff.bmp Arkbuild/usr/share/bootlogo/
-  sudo chroot Arkbuild/ bash -c "systemctl enable bootlogo bootlogo-loading bootlogo-loading-again bootlogo-reboot bootlogo-poweroff"
+  sudo cp scripts/bootlogo/bootlogo.py Arkbuild/usr/local/sbin/
+  sudo chmod 0755 Arkbuild/usr/local/sbin/bootlogo.py
+  sudo cp scripts/bootlogo/bootlogo.service Arkbuild/etc/systemd/system/
+  sudo chroot Arkbuild/ bash -c "systemctl enable bootlogo"
   # The @reboot "perfnorm quiet" (only boot passes "quiet") reset tty1 at ~10 s and wiped the logo.
   sudo sed -i -e '2s/^printf "\\033c" >> \/dev\/tty1$/[ "$1" = quiet ] || &/' \
     -e 's/^  clear > \/dev\/tty1$/  [ "$1" = quiet ] || clear > \/dev\/tty1/' Arkbuild/usr/local/bin/perfnorm

@@ -118,6 +118,23 @@ done >> "$WORK/verify"
 
 sed -n 's/^CHANGED //p' "$WORK/verify" | canon | sort -u > "$WORK/changed"
 sed -n 's/^MISSING //p' "$WORK/verify" | canon | sort -u | grep -Ev -f "$WORK/exclude" | grep -Ev -f "$WORK/never-remove" > "$WORK/remove.list"
+# Files an earlier dArkMoss build added and this one dropped: no package owns them, so the md5
+# check above cannot see them go.
+cat >> "$WORK/remove.list" <<'EOF'
+/usr/local/sbin/bootlogo-loading.sh
+/etc/systemd/system/bootlogo-loading.service
+/etc/systemd/system/bootlogo-loading-again.service
+/etc/systemd/system/bootlogo-reboot.service
+/etc/systemd/system/bootlogo-poweroff.service
+/etc/systemd/system/sysinit.target.wants/bootlogo-loading.service
+/etc/systemd/system/sysinit.target.wants/bootlogo-loading-again.service
+/etc/systemd/system/reboot.target.wants/bootlogo-reboot.service
+/etc/systemd/system/poweroff.target.wants/bootlogo-poweroff.service
+/etc/systemd/system/halt.target.wants/bootlogo-poweroff.service
+/usr/share/bootlogo/logo-reboot.bmp
+/usr/share/bootlogo/logo-poweroff.bmp
+/etc/initramfs-tools/scripts/init-top/darkmoss-loading
+EOF
 
 sort -u "$WORK/unowned" "$WORK/changed" | grep -Ev -f "$WORK/exclude" | sed 's#^/##' > "$WORK/layer"
 

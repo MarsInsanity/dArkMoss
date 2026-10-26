@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # The dArkMoss boot logo, laid out like oakMOSS's (scripts/make-boot-resource.py logo()): spruce's tree
-# (spruce/imgs/tree_sm_close_crop.png) over the name on black, as a full-panel 24-bit BMP for U-Boot and bootlogo.py.
+# (spruce/imgs/tree_sm_close_crop.png) over the name on the SPRUCE theme's background, as a full-panel 24-bit BMP for U-Boot and bootlogo.py.
 #   make-logo.py <width> <height> <out.bmp> [--rotate-cw|--rotate-ccw] [--status TEXT]
 #     --rotate-cw/--rotate-ccw: draw landscape, turn 90 degrees clockwise / counterclockwise (for a
 #     portrait panel booted with fbcon=rotate:1 / rotate:3); --status: add oakMOSS's grey status line.
@@ -13,11 +13,12 @@ from PIL import Image, ImageDraw, ImageFont
 TREE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spruce-tree.png")
 FONTB = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+BG = (0x28, 0x28, 0x28, 255)  # spruce Themes/SPRUCE bgColor #282828
 
 
 def logo(w, h, label="dArkMoss", status=None):
     k = min(1.0, min(w, h) / 480)  # 1 on the 640x480 / 720x720 panels the layout was made for
-    im = Image.new("RGBA", (w, h), (0, 0, 0, 255))
+    im = Image.new("RGBA", (w, h), BG)
     tree = Image.open(TREE).convert("RGBA")
     tree = tree.resize((round(tree.width * 2 * k), round(tree.height * 2 * k)), Image.LANCZOS)
     font = ImageFont.truetype(FONTB, round(46 * k))
