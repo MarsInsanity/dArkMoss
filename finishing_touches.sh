@@ -466,8 +466,8 @@ if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; the
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message"
   sudo cp scripts/bootlogo/bootlogo.py Arkbuild/usr/local/sbin/
   sudo chmod 0755 Arkbuild/usr/local/sbin/bootlogo.py
-  sudo cp scripts/bootlogo/bootlogo.service Arkbuild/etc/systemd/system/
-  sudo chroot Arkbuild/ bash -c "systemctl enable bootlogo"
+  sudo cp scripts/bootlogo/bootlogo.service scripts/bootlogo/bootlogo-clear.service Arkbuild/etc/systemd/system/
+  sudo chroot Arkbuild/ bash -c "systemctl enable bootlogo bootlogo-clear"
   # The @reboot "perfnorm quiet" (only boot passes "quiet") reset tty1 at ~10 s and wiped the logo.
   sudo sed -i -e '2s/^printf "\\033c" >> \/dev\/tty1$/[ "$1" = quiet ] || &/' \
     -e 's/^  clear > \/dev\/tty1$/  [ "$1" = quiet ] || clear > \/dev\/tty1/' Arkbuild/usr/local/bin/perfnorm
