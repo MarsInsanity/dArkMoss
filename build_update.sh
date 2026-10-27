@@ -134,6 +134,7 @@ cat >> "$WORK/remove.list" <<'EOF'
 /usr/share/bootlogo/logo-reboot.bmp
 /usr/share/bootlogo/logo-poweroff.bmp
 /etc/initramfs-tools/scripts/init-top/darkmoss-loading
+/boot/logo-boot.bmp
 EOF
 
 sort -u "$WORK/unowned" "$WORK/changed" | grep -Ev -f "$WORK/exclude" | sed 's#^/##' > "$WORK/layer"
