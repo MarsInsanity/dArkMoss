@@ -91,7 +91,7 @@ diff -ruN a/drivers/video/drm/rockchip_panel.c b/drivers/video/drm/rockchip_pane
  	struct udevice *power_supply;
  	struct udevice *backlight;
  	struct gpio_desc enable_gpio;
-@@ -273,6 +282,54 @@
+@@ -273,6 +282,60 @@
  	return 0;
  }
  
@@ -111,10 +111,16 @@ diff -ruN a/drivers/video/drm/rockchip_panel.c b/drivers/video/drm/rockchip_pane
 +	u8 id[sizeof(plat->id)];
 +	int i, len;
 +
-+	mipi_dsi_set_maximum_return_packet_size(dsi, plat->id_len);
-+	ret = mipi_dsi_dcs_read(dsi, plat->id_reg, id, plat->id_len);
++	for (i = 0; i < 5; i++) {
++		mipi_dsi_set_maximum_return_packet_size(dsi, plat->id_len);
++		ret = mipi_dsi_dcs_read(dsi, plat->id_reg, id, plat->id_len);
++		if (ret == plat->id_len)
++			break;
++		printf("panel: ID read %d failed (%d)\n", i + 1, (int)ret);
++		mdelay(20);
++	}
 +	if (ret != plat->id_len) {
-+		printf("panel: ID read failed (%d), keeping %s\n", (int)ret, name);
++		printf("panel: ID read failed, keeping %s\n", name);
 +		return false;
 +	}
 +
