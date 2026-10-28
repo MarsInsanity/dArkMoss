@@ -71,7 +71,7 @@ if [ "$UNIT" == "g350" ]; then
     verify_action
   done
 fi
-# A10 Mini V4: 59.9 Hz panel timing, 3.3 V SD card power.
+# A10 Mini and V4: 3.3 V SD card power; V4: 59.9 Hz panel timing.
 if [ "$UNIT" == "a10mini" ]; then
   for fix in ../patches/a10mini/kernel/*.patch; do
     git apply -R --check "$fix" 2>/dev/null && continue
