@@ -16,7 +16,7 @@ sync
 
 
 # Build uboot and install it to the image
-if [ "$UNIT" == "rg351mp" ] || [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "xumini" ]; then
+if [ "$UNIT" == "rg351mp" ] || [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "r36sclone" ]; then
   git clone --depth=1 https://github.com/christianhaitian/RG351MP-u-boot u-boot-${CHIPSET}
 else
   git clone --depth=1 https://github.com/christianhaitian/u-boot-${CHIPSET}
@@ -26,6 +26,13 @@ if [ "$UNIT" == "xumini" ]; then
   # xumini-uboot.dts is ours; RG351MP-u-boot has no such unit upstream.
   patch -p1 < ../patches/xumini/uboot/0001-arch-arm-dts-Makefile.patch
   cp ../patches/xumini/uboot/xumini-uboot.dts arch/arm/dts/
+fi
+if [ "$UNIT" == "r36sclone" ]; then
+  # Ours as well: the G80CA board (r36sclone-uboot.dts), its two panels, and the
+  # same board starting on Panel 9 (r36sclone-panel9-uboot.dts).
+  patch -p1 < ../patches/r36sclone/uboot/0001-arch-arm-dts-Makefile.patch
+  verify_action
+  cp ../patches/r36sclone/uboot/*.dts ../patches/r36sclone/uboot/*.dtsi arch/arm/dts/
 fi
 if [ "$UNIT" == "g350" ]; then
   # g350-uboot.dts pins vccio_sd (the TF1 IO rail) at 1.8 V, so U-Boot forces it
@@ -48,6 +55,7 @@ case "$UNIT" in
   g350)   UBOOT_OPTIN="uboot-dtb panel-id" ;;
   a10mini) UBOOT_OPTIN="panel-id" ;;
   xumini) UBOOT_OPTIN="uboot-dtb" ;;
+  r36sclone) UBOOT_OPTIN="uboot-dtb panel-id" ;;
   *)      UBOOT_OPTIN="" ;;
 esac
 for fix in $UBOOT_OPTIN; do
@@ -59,8 +67,9 @@ done
 dd if="sd_fuse/idbloader.img" of="../${DISK}" bs=512 seek=64 conv=sync,noerror,notrunc
 dd if="sd_fuse/uboot.img" of="../${DISK}" bs=512 seek=16384 conv=sync,noerror,notrunc
 dd if="sd_fuse/trust.img" of="../${DISK}" bs=512 seek=24576 conv=sync,noerror,notrunc
-if [ "$UNIT" == "rg351mp" ] || [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "xumini" ]; then
+if [ "$UNIT" == "rg351mp" ] || [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "r36sclone" ]; then
   cp arch/arm/dts/${UNIT}-uboot.dtb /tmp/
+  [ "$UNIT" == "r36sclone" ] && cp arch/arm/dts/${UNIT}-panel9-uboot.dtb /tmp/
 fi
 cd ..
 rm -rf u-boot-${CHIPSET}

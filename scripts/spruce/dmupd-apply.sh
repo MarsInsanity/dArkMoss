@@ -67,6 +67,11 @@ if [ -z "$HAVE_PLATFORM" ]; then
 fi
 WANT_PLATFORM="$(field spruce_platform)"
 [ "$WANT_PLATFORM" = "$HAVE_PLATFORM" ] || fail "payload is for $WANT_PLATFORM, this device is $HAVE_PLATFORM"
+# Units can share a SPRUCE_PLATFORM (the R36S clone runs spruce's G350 one), so the
+# image's own unit decides too. Images from before the DARKMOSS_UNIT stamp skip this.
+HAVE_UNIT="$(sed -n 's/^DARKMOSS_UNIT="\(.*\)"/\1/p' /etc/os-release)"
+WANT_UNIT="$(field unit)"
+[ -z "$HAVE_UNIT" ] || [ "$WANT_UNIT" = "$HAVE_UNIT" ] || fail "payload is for the $WANT_UNIT image, this device runs the $HAVE_UNIT one"
 
 say "applying $(field version) ($(field build)) for $WANT_PLATFORM"
 
@@ -182,5 +187,5 @@ if [ "$HAVE_RESOURCE" = 1 ]; then
     sync
 fi
 
-say "done: $(sed -n 's/^OS_VERSION=//p' /etc/os-release | tr -d '"') is installed, reboot to run it"
+say "done: $(. /etc/os-release; echo "${DARKMOSS_VERSION:-$OS_VERSION}") is installed, reboot to run it"
 exit 0

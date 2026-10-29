@@ -41,9 +41,21 @@ if [ "$UNIT" == "xumini" ] && [ ! -f "$KERNEL_SRC/arch/arm64/boot/dts/rockchip/r
   test -f "$KERNEL_SRC/arch/arm64/boot/dts/rockchip/rk3326-xumini-linux.dts"
   verify_action
 fi
+if [ "$UNIT" == "r36sclone" ] && [ ! -f "$KERNEL_SRC/arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts" ]; then
+  # R36S clone (G80CA): its two board dts (one per panel) and lcdyk0517's
+  # odroidgo3-joypad, which reads the clone's amux-channel-mapping; both from
+  # lcdyk0517/arkos.bsp.4.4, see the patches. git am, as for the Mini M above.
+  git -C $KERNEL_SRC -c user.name=dArkMoss -c user.email=dArkMoss@localhost \
+    am "$PWD"/patches/r36sclone/kernel/series/*.patch
+  test -f "$KERNEL_SRC/arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts"
+  verify_action
+fi
 cd $KERNEL_SRC
 for patch in ../scripts/kernel-${KERNEL_SRC}/*.patch; do
   [ -e "$patch" ] || continue
+  # The clone's odroidgo3-joypad is lcdyk0517's, which this d-pad knob (for the
+  # stickless A10 Mini) does not apply to; a unit with two sticks has no use for it.
+  [ "$UNIT" == "r36sclone" ] && [ "${patch##*/}" == "odroidgo3-dpad-analog.patch" ] && continue
   git apply -R --check "$patch" 2>/dev/null && continue
   if ! git apply "$patch"; then
     echo "ERROR: $patch did not apply."
@@ -56,6 +68,7 @@ case "$UNIT" in
   g350)   KERNEL_OPTIN="no-async-page-flip vt-csi-ignore rk817-gauge-capacity" ;;
   v10)    KERNEL_OPTIN="no-async-page-flip vt-csi-ignore rk817-gauge-capacity" ;;
   xumini) KERNEL_OPTIN="no-async-page-flip vt-csi-ignore rk817-gauge-capacity rk817-plugin-online" ;;
+  r36sclone) KERNEL_OPTIN="no-async-page-flip vt-csi-ignore rk817-gauge-capacity" ;;
   *)      KERNEL_OPTIN="" ;;
 esac
 for fix in $KERNEL_OPTIN; do
@@ -107,6 +120,8 @@ sudo cp $KERNEL_SRC/arch/arm64/boot/Image ${mountpoint}/
 sudo cp $KERNEL_SRC/arch/arm64/boot/dts/rockchip/${KERNEL_DTB} ${mountpoint}/
 # The V4's dtb, which boot.ini loads when U-Boot picked the V4 panel.
 [ "$UNIT" == "a10mini" ] && sudo cp $KERNEL_SRC/arch/arm64/boot/dts/rockchip/${CHIPSET}-a10mini-v4-linux.dtb ${mountpoint}/
+# The clone's Panel 9 dtb, which boot.ini loads when U-Boot is on panel@9.
+[ "$UNIT" == "r36sclone" ] && sudo cp $KERNEL_SRC/arch/arm64/boot/dts/rockchip/${CHIPSET}-r36sclone-panel9-linux.dtb ${mountpoint}/
 if [ "$UNIT" == "v10" ]; then
   # The v11 dts names an ESP8089 SDIO Wi-Fi chip the V10 does not have. With
   # this kernel's rkwifi (WL_ROCKCHIP) that node registers a Wi-Fi power switch,
@@ -123,6 +138,12 @@ if [[ " $UBOOT_OPTIN " == *" uboot-dtb "* ]]; then
   # dtb on BOOT; every unit's dts stays in the U-Boot tree.
   sudo cp /tmp/${UNIT}-uboot.dtb ${mountpoint}/uboot.dtb
   sudo rm /tmp/${UNIT}-uboot.dtb
+  if [ "$UNIT" == "r36sclone" ]; then
+    # The same U-Boot dtb starting on Panel 9, for a Panel 9 the ID check misses:
+    # renamed to uboot.dtb by hand (R36S-PANEL.txt on BOOT).
+    sudo cp /tmp/${UNIT}-panel9-uboot.dtb ${mountpoint}/uboot-panel9.dtb
+    sudo rm /tmp/${UNIT}-panel9-uboot.dtb
+  fi
 elif [ "$UNIT" == "rg351mp" ] || [ "$UNIT" == "a10mini" ]; then
   sudo cp /tmp/${UNIT}-uboot.dtb ${mountpoint}/rg351mp-uboot.dtb
   sudo rm /tmp/${UNIT}-uboot.dtb

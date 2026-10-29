@@ -68,6 +68,7 @@ Units:
 | g350 | G350 (RK3326) | `make g350` | `build_g350.sh` |
 | v10 | Powkiddy V10 (RK3326) | `make v10` | `build_v10.sh` |
 | xumini | MagicX XU Mini M (RK3326) | `make xumini` | `build_xumini.sh` |
+| r36sclone | R36S clone, G80CA-MB board (RK3326) | `make r36sclone` | `build_r36sclone.sh` |
 
 Images are built on GitHub Actions, not locally. Under Actions:
 
@@ -100,3 +101,31 @@ a name in the `HW_DEVICE` and `SPRUCE_PLATFORM` cases in
 `setup_spruce_handoff.sh` and in `build_update.sh`, and add the unit to
 `.github/units.txt`. Everything else in the pipeline already keys on `UNIT`.
 
+### R36S clone (r36sclone)
+
+For the R36S clones on the G80CA-MB board (V1.2/V1.3 on the silkscreen), not
+the genuine R36S. spruce has no R36S platform and will not get one, so the
+image runs spruce's own G350 profile: same SoC, panel size, sticks, joypad
+driver and button codes. Nothing on the spruce card changes.
+
+- Kernel: `patches/r36sclone/kernel/series`, applied to christianhaitian's
+  rg351 like the Mini M's: the board's two dts, one per panel, and
+  lcdyk0517's odroidgo3-joypad, which reads the clone's
+  `amux-channel-mapping`. Both from lcdyk0517/arkos.bsp.4.4 (arkos4clone's
+  "R36S Clone Type2"); the patches list what was changed.
+- U-Boot: `patches/r36sclone/uboot`, the G80CA U-Boot dtb dArkOSRE-R36 ships as
+  tested, as source, with both panels for the panel-ID check. U-Boot reads this
+  board as an RG351V, so it is loaded as `uboot.dtb` (the `uboot-dtb` opt-in).
+- Panels: G80CA units have "Panel 8" (ST7703) or "Panel 9" (NV3051D family).
+  U-Boot starts on Panel 8 and switches when the screen answers with Panel 9's
+  ID; boot.ini loads the kernel dtb for whichever it ended on. The IDs are the
+  ones the G350's panels of the same families answer and have not been read on
+  a G80CA, so BOOT also carries `uboot-panel9.dtb`, the same dtb starting on
+  Panel 9, and `R36S-PANEL.txt` says how to swap it in.
+- Updates: spruce's Firmware Update looks up the G350's payload, which would
+  leave the clone dark, so the image stamps `OS_VERSION="999.0.0"` (spruce then
+  never offers one) and the real version as `DARKMOSS_VERSION`. Its own payload
+  is `dArkMoss_R36SCLONE_<version>.dmupd`: renamed
+  `dArkMoss_G350_<version>.dmupd` at the root of the spruce card, Firmware
+  Update installs it. The applier checks `DARKMOSS_UNIT`, so it refuses a
+  payload built for another unit.

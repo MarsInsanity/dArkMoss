@@ -157,6 +157,7 @@ case "$UNIT" in
   g350)      HW_DEVICE_NAME="G350" ;;
   v10)       HW_DEVICE_NAME="Powkiddy V10" ;;
   xumini)    HW_DEVICE_NAME="XU Mini M" ;;
+  r36sclone) HW_DEVICE_NAME="R36S" ;;
   *)         HW_DEVICE_NAME="" ;;
 esac
 if [ -n "$HW_DEVICE_NAME" ] && ! grep -q '^HW_DEVICE=' Arkbuild/etc/os-release 2>/dev/null; then
@@ -166,6 +167,11 @@ fi
 # The spruce platform name for this unit, so spruce needs no table of its own
 # to map HW_DEVICE strings: a new unit is one line here and its platform files
 # on the card.
+#
+# r36sclone: spruce has no R36S platform, and the clone is a G350 as far as
+# spruce can tell: RK3326, 640x480, two sticks, the same odroidgo3-joypad
+# ("GO-Super Gamepad", same product/revision and button codes), rk817 audio and
+# a 0-255 backlight. So it runs spruce's G350 profile unchanged.
 case "$UNIT" in
   rgb30)     SPRUCE_PLATFORM_NAME="RGB30" ;;
   miniloong) SPRUCE_PLATFORM_NAME="Miniloong" ;;
@@ -174,15 +180,33 @@ case "$UNIT" in
   g350)      SPRUCE_PLATFORM_NAME="G350" ;;
   v10)       SPRUCE_PLATFORM_NAME="V10" ;;
   xumini)    SPRUCE_PLATFORM_NAME="XUMiniM" ;;
+  r36sclone) SPRUCE_PLATFORM_NAME="G350" ;;
   *)         SPRUCE_PLATFORM_NAME="" ;;
 esac
 if [ -n "$SPRUCE_PLATFORM_NAME" ] && ! grep -q '^SPRUCE_PLATFORM=' Arkbuild/etc/os-release 2>/dev/null; then
   echo "SPRUCE_PLATFORM=\"$SPRUCE_PLATFORM_NAME\"" | sudo tee -a Arkbuild/etc/os-release >/dev/null
 fi
 
+# Which dArkMoss image this is, whatever SPRUCE_PLATFORM it borrows: the
+# applier refuses a payload built for another unit (dmupd-apply.sh).
+if ! grep -q '^DARKMOSS_UNIT=' Arkbuild/etc/os-release 2>/dev/null; then
+  echo "DARKMOSS_UNIT=\"$UNIT\"" | sudo tee -a Arkbuild/etc/os-release >/dev/null
+fi
+
 # What spruce shows as the firmware version. The release tag when CI passes
 # one (DARKMOSS_VERSION), the build date otherwise.
-if ! grep -q '^OS_VERSION=' Arkbuild/etc/os-release 2>/dev/null; then
+#
+# r36sclone: spruce's Firmware Update looks for spruceUI/dArkMoss's
+# dArkMoss_<SPRUCE_PLATFORM>_*.dmupd, which for the borrowed G350 platform is
+# the real G350's: its kernel, dtbs and U-Boot dtb would leave the clone dark.
+# A version above any release keeps spruce from offering it (installed >=
+# latest), and the real one goes in DARKMOSS_VERSION for 00-header and logs.
+if [ "$UNIT" == "r36sclone" ]; then
+  if ! grep -q '^OS_VERSION=' Arkbuild/etc/os-release 2>/dev/null; then
+    echo 'OS_VERSION="999.0.0"' | sudo tee -a Arkbuild/etc/os-release >/dev/null
+    echo "DARKMOSS_VERSION=\"${DARKMOSS_VERSION:-$BUILD_DATE}\"" | sudo tee -a Arkbuild/etc/os-release >/dev/null
+  fi
+elif ! grep -q '^OS_VERSION=' Arkbuild/etc/os-release 2>/dev/null; then
   echo "OS_VERSION=\"${DARKMOSS_VERSION:-$BUILD_DATE}\"" | sudo tee -a Arkbuild/etc/os-release >/dev/null
 fi
 

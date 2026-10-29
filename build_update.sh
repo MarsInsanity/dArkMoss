@@ -26,11 +26,17 @@ case "$UNIT" in
   g350)      DMUPD_PLATFORM="G350" ;;
   v10)       DMUPD_PLATFORM="V10" ;;
   xumini)    DMUPD_PLATFORM="XUMiniM" ;;
+  r36sclone) DMUPD_PLATFORM="G350" ;;
   *)         DMUPD_PLATFORM="" ;;
 esac
 
 # spruce's Firmware Update app finds the payload by its SPRUCE_PLATFORM, upper-cased.
 iName=$(echo ${DMUPD_PLATFORM:-$UNIT} | tr '[:lower:]' '[:upper:]')
+# Except the R36S clone's, named for the unit: it borrows the G350's platform, so under
+# the G350's name it would be offered to real G350s. On the clone it is renamed
+# dArkMoss_G350_<version>.dmupd at the root of the spruce card (README.md); the
+# applier refuses it on any other unit's image (DARKMOSS_UNIT).
+[ "$UNIT" == "r36sclone" ] && iName=R36SCLONE
 DMUPD_VERSION="${DARKMOSS_VERSION:-$BUILD_DATE}"
 DMUPD="dArkMoss_${iName}_${DMUPD_VERSION}.dmupd"
 

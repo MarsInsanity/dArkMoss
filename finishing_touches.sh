@@ -6,9 +6,9 @@ if [ "$UNIT" == "rg351mp" ]; then
 else
   INITRD_LOADERADDRESS="0x04000000"
 fi
-# G350, A10 Mini: pass U-Boot's panel-ID result to Linux (/proc/cmdline), where a per-panel
-# kernel dtb can key on it later.
-if [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ]; then
+# G350, A10 Mini, R36S clone: pass U-Boot's panel-ID result to Linux (/proc/cmdline), where a
+# per-panel kernel dtb can key on it later.
+if [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "r36sclone" ]; then
   PANEL_ARGS=" panel_id=\${panel_id} panel_node=\${panel_node}"
 else
   PANEL_ARGS=""
@@ -26,9 +26,17 @@ setenv fb_rotate \"${SCREEN_ROTATION}\"
 if test \"\${panel_node}\" = \"panel@1\"; then setenv dtb_name \"${CHIPSET}-a10mini-v4-linux.dtb\"; setenv fb_rotate \"2\"; fi
 "
 fi
-# G350, Mini M, V10: with /boot/darkmoss-debug, kernel and systemd text on the panel instead of the logos
-# (every bootlogo piece skips itself on darkmoss.debug).
-if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
+# R36S clone: U-Boot names the panel it drives, panel@8 or panel@9 (patches/r36sclone/uboot,
+# whether the ID check or uboot-panel9.dtb put it there); boot the dtb for that panel.
+if [ "$UNIT" == "r36sclone" ]; then
+  BOOT_DTB='${dtb_name}'
+  PANEL_LINE="setenv dtb_name \"${KERNEL_DTB}\"
+if test \"\${panel_node}\" = \"panel@9\"; then setenv dtb_name \"${CHIPSET}-r36sclone-panel9-linux.dtb\"; fi
+"
+fi
+# G350, Mini M, V10, R36S clone: with /boot/darkmoss-debug, kernel and systemd text on the panel
+# instead of the logos (every bootlogo piece skips itself on darkmoss.debug).
+if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ] || [ "$UNIT" == "r36sclone" ]; then
   DEBUG_LINE='if test -e mmc 1:1 /darkmoss-debug; then setenv bootargs "${bootargs} console=tty0 loglevel=7 systemd.show_status=1 darkmoss.debug"; fi'
 else
   DEBUG_LINE=""
@@ -68,8 +76,9 @@ if [ "$UNIT" == "xumini" ]; then
   # Portrait panel: U-Boot copies the BMP as-is, so the G350's logo is turned 90 degrees
   # clockwise (make-logo.py 480 640 --rotate-cw), the same way as the kernel's fbcon=rotate:1.
   sudo cp logos/xumini/logo.bmp ${mountpoint}/logo.bmp
-elif [ "$UNIT" == "g350" ]; then
-  # oakMOSS-style logo from logos/make-logo.py 640 480 (bootlogo.service also shows it).
+elif [ "$UNIT" == "g350" ] || [ "$UNIT" == "r36sclone" ]; then
+  # oakMOSS-style logo from logos/make-logo.py 640 480 (bootlogo.service also shows it);
+  # the R36S clone's panel is 640x480 landscape as well, so it shares the G350's.
   sudo cp logos/g350/logo.bmp ${mountpoint}/logo.bmp
 elif [ "$UNIT" == "v10" ]; then
   # 320x480 portrait panel booted with fbcon=rotate:3: logos/make-logo.py 320 480 --rotate-ccw.
@@ -80,6 +89,8 @@ fi
 # bootlogo.service's first-boot redraw: that logo plus "Setting up the card" (make-logo.py --status).
 if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
   sudo cp logos/${UNIT}/logo-firstboot.bmp ${mountpoint}/
+elif [ "$UNIT" == "r36sclone" ]; then
+  sudo cp logos/g350/logo-firstboot.bmp ${mountpoint}/
 fi
 
 if [ -d "optional" ]; then
@@ -188,6 +199,33 @@ Note: while the "darkmoss-debug" file is present the text console is also left
 on the screen, so kernel messages and any panic are visible. Without it the
 console is detached and the display belongs to the frontend.
 EOF
+
+# R36S clone: which panel, and what to do when the screen stays dark.
+if [ "$UNIT" == "r36sclone" ]; then
+  cat <<EOF | sudo tee ${mountpoint}/R36S-PANEL.txt >/dev/null
+dArkMoss for the R36S clone (G80CA-MB board)
+============================================
+
+This image is for the G80CA-MB board (G80CA-MB V1.2 and V1.3 on the board's
+silkscreen), not for a genuine R36S. G80CA units ship with one of two screens,
+"Panel 8" and "Panel 9". At power-on the boot loader asks the screen for its
+ID and picks the matching one, starting from Panel 8.
+
+If the screen stays dark (the power LED is on but nothing ever shows):
+  1. Put this card in a PC.
+  2. Rename "uboot.dtb" to "uboot-panel8.dtb".
+  3. Rename "uboot-panel9.dtb" to "uboot.dtb".
+  4. Boot the device again.
+To go back, rename the files the other way round.
+
+A dArkMoss update replaces both files with fresh copies, so on a Panel 9
+unit that needed the rename, do it again after an update.
+
+Create an empty "darkmoss-debug" file here (see README-logging.txt) to have
+the logs record which panel was detected: look for panel_id and panel_node
+in the kernel command line at the top of dmesg.log.
+EOF
+fi
 
 # Disable getty on tty0 and tty1
 sudo chroot Arkbuild/ bash -c "systemctl disable getty@tty0.service getty@tty1.service"
@@ -460,9 +498,10 @@ sudo cp scripts/boot_text.sh Arkbuild/usr/local/bin/
 sudo chmod 777 Arkbuild/usr/local/bin/boot_text.sh
 sudo cp scripts/welcome-message.service Arkbuild/etc/systemd/system/welcome-message.service
 sudo chroot Arkbuild/ bash -c "systemctl enable welcome-message"
-# G350, Mini M, V10: the logo stays up instead of the welcome text, which would clear it. bootlogo.service
-# redraws it once the console blanks U-Boot's (upstream's image-viewer logo.service is not built).
-if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
+# G350, Mini M, V10, R36S clone: the logo stays up instead of the welcome text, which would clear it.
+# bootlogo.service redraws it once the console blanks U-Boot's (upstream's image-viewer logo.service
+# is not built).
+if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ] || [ "$UNIT" == "r36sclone" ]; then
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message"
   sudo cp scripts/bootlogo/bootlogo.py Arkbuild/usr/local/sbin/
   sudo chmod 0755 Arkbuild/usr/local/sbin/bootlogo.py
