@@ -47,6 +47,11 @@ if [ "$UNIT" == "a10mini" ]; then
   # One image for the A10 Mini and the V4: both panels, told apart by the panel-id fix below.
   patch -p1 < ../patches/a10mini/uboot/0001-a10mini-uboot-two-panels.patch
   verify_action
+  # rkbin's DDR init v2.12 (as stock ArkOS4Clone): v1.10 corrupts RAM on some V4s.
+  cp ../patches/a10mini/uboot/rk3326_ddr_333MHz_v2.12.bin tools/rk_tools/bin/rk33/
+  sed -i 's/rk3326_ddr_333MHz_v1\.10\.bin/rk3326_ddr_333MHz_v2.12.bin/' make.sh
+  grep -q 'rk3326_ddr_333MHz_v2.12.bin' make.sh
+  verify_action
 fi
 # Opt-in fixes from patches/rk3326/uboot: a unit lists only what it was tested with.
 # uboot-dtb: U-Boot loads uboot.dtb, whatever hwrev reads; build_kernel.sh ships it.

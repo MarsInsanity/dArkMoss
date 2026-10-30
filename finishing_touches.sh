@@ -162,11 +162,11 @@ sudo cp amiga/amiga.sh Arkbuild/usr/local/bin/
 if [ "$ROOT_FILESYSTEM_FORMAT" == "btrfs" ]; then
   ROOT_FILESYSTEM_MOUNT_OPTIONS="${ROOT_FILESYSTEM_MOUNT_OPTIONS},ssd_spread"
 fi
-# V10: the 4.4 kernel has no compression levels, so "compress=zlib:1" failed
+# rk3326: the 4.4 kernel has no compression levels, so "compress=zlib:1" failed
 # systemd-remount-fs on every boot; plain "zlib" is the same algorithm. This is
 # the fstab firstboot installs (expandtoexfat), the image's own is fixed in
 # setup_spruce_handoff.sh.
-if [ "$UNIT" == "v10" ]; then
+if [ "$CHIPSET" == "rk3326" ]; then
   ROOT_FILESYSTEM_MOUNT_OPTIONS="${ROOT_FILESYSTEM_MOUNT_OPTIONS//compress=zlib:1/compress=zlib}"
 fi
 cat <<EOF | sudo tee ${mountpoint}/fstab.exfat

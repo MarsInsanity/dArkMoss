@@ -20,4 +20,11 @@ install_if_different() {
 install_if_different "$SHARE/sdl64-$panel" "$(readlink -f /usr/lib/aarch64-linux-gnu/libSDL2.so)"
 install_if_different "$SHARE/sdl32-$panel" "$(readlink -f /usr/lib/arm-linux-gnueabihf/libSDL2.so)"
 install_if_different "$SHARE/logo-$panel.bmp" /boot/logo.bmp
+
+# The V4 speaker sits behind an external amp fed from the codec's HP output: the
+# shared rk3326 mixer default (DAC at -27 dB) is near-silent there. Full DAC gain.
+if [ "$panel" = v4 ]; then
+    amixer -q cset name='Playback Volume' 237 2>/dev/null
+    alsactl store 2>/dev/null
+fi
 sync

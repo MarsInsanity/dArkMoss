@@ -216,9 +216,11 @@ fi
 #     ifupdown has no interfaces file and the V10 has no Wi-Fi chip; NM still
 #     runs for spruce's nmcli and dbus-activates wpa_supplicant if ever needed
 #   keyboard-setup   0.6 s, no keyboard on a handheld
-# fstab: the 4.4 kernel has no compression levels, so "compress=zlib:1" made
-# systemd-remount-fs fail on every boot; plain "zlib" is the same algorithm.
 if [ "$UNIT" == "v10" ]; then
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message networking wifi_importer NetworkManager-wait-online wpa_supplicant 2>/dev/null; systemctl mask keyboard-setup.service" || true
+fi
+# fstab: the 4.4 kernel has no compression levels, so "compress=zlib:1" made
+# systemd-remount-fs fail on every boot; plain "zlib" is the same algorithm.
+if [ "$CHIPSET" == "rk3326" ]; then
   sudo sed -i 's/compress=zlib:1/compress=zlib/' Arkbuild/etc/fstab
 fi
