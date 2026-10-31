@@ -1,0 +1,388 @@
+#!/bin/sh
+
+. /mnt/SDCARD/spruce/scripts/helperFunctions.sh
+
+# A platform cfg with PYUI_ENV_DEVICE=true runs PyUI as the env-driven SPRUCE device.
+[ "$PYUI_ENV_DEVICE" = "true" ] && . /mnt/SDCARD/App/PyUI/spruce-device-env.sh
+
+runifnecessary() {
+    a=$(pgrep "$1")
+    if [ "$a" = "" ] ; then
+        $2 &
+    fi
+}
+
+# Check for -buttonListenerMode in arguments
+redirect_output=0
+button_listener_mode=0
+for arg in "$@"; do
+    if [ "$arg" = "-buttonListenerMode" ]; then
+        redirect_output=0
+        button_listener_mode=1
+        break
+    fi
+done
+
+# Launch (and subsequently close) MainUI with various quirks depending on PLATFORM
+case "$PLATFORM" in
+
+############################################################
+# A30
+############################################################
+    "A30" )
+        ln -s /dev/ttyS2 /dev/ttyS0
+
+        export PYSDL2_DLL_PATH="/mnt/SDCARD/spruce/a30/sdl2"
+
+        cmd="/mnt/SDCARD/spruce/bin/python/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device MIYOO_A30 \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        # Convert command to positional args
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        elif [ "$redirect_output" -eq 1 ]; then
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+        else
+            "$@" >/dev/null 2>&1
+        fi
+
+        rm /dev/ttyS0
+    ;;
+
+############################################################
+# Brick / BrickPro / SmartPro / SmartProS
+############################################################
+    "Brick" | "BrickPro" | "SmartPro" | "SmartProS" )
+        tinymix set 9 1
+        tinymix set 1 0
+
+        cd /usr/trimui/bin
+
+        export PYSDL2_DLL_PATH="/mnt/SDCARD/spruce/brick/sdl2"
+
+        if [ "$PLATFORM" = "Brick" ]; then
+            DEVICE="TRIMUI_BRICK"
+        elif [ "$PLATFORM" = "BrickPro" ]; then
+            DEVICE="TRIMUI_BRICK_PRO"
+        elif [ "$PLATFORM" = "SmartProS" ]; then
+            DEVICE="TRIMUI_SMART_PRO_S"
+        else
+            DEVICE="TRIMUI_SMART_PRO"
+        fi
+        [ "$PYUI_ENV_DEVICE" = "true" ] && DEVICE="SPRUCE"
+
+        cmd="/mnt/SDCARD/spruce/flip/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device $DEVICE \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        # Convert to positional args
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        elif [ "$redirect_output" -eq 1 ]; then
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+        else
+            "$@" >/dev/null 2>&1
+        fi
+
+        if [ -f /tmp/trimui_inputd_restart ] ; then
+            killall -9 trimui_inputd
+            sleep 0.2
+            runifnecessary "inputd" trimui_inputd
+            rm /tmp/trimui_inputd_restart 
+        fi
+    ;;
+
+############################################################
+# Miyoo Flip
+############################################################
+    "Flip" )
+        cd /usr/miyoo/bin/
+        export PYSDL2_DLL_PATH="/mnt/SDCARD/App/PyUI/dll"
+
+        cmd="/mnt/SDCARD/spruce/flip/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device MIYOO_FLIP \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        elif [ "$redirect_output" -eq 1 ]; then
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+        else
+            "$@" >/dev/null 2>&1
+        fi
+    ;;
+
+############################################################
+# Anbernic RG XX line (Allwinner H700)
+############################################################
+    "AnbernicXX720480" | "AnbernicXX720480NoStick" | "AnbernicXX640480" | "AnbernicXX640480NoStick" | "AnbernicXX640480OneStick" | "AnbernicRG28XX" | "AnbernicRGCubeXX" )
+        # BaseOS ships no SDL2 and no python: use the aarch64 pair we already
+        # bundle. MainUI is the bind-mounted alias of python3.10 set up in
+        # device_init - spruce greps for that process name.
+        #
+        # Our usual SDL2 only speaks KMSDRM and wayland. BaseOS has neither
+        # libdrm/libgbm nor wayland - its mali blob is the fbdev winsys build -
+        # so that SDL2 falls back to the dummy driver and renders nowhere.
+        # Prefer a mali-fbdev SDL2 when one is staged alongside.
+        PYUI_DLL=/mnt/SDCARD/App/PyUI/dll
+        [ -f /mnt/SDCARD/App/PyUI/dll-mali/libSDL2-2.0.so.0 ] && PYUI_DLL=/mnt/SDCARD/App/PyUI/dll-mali
+
+        export PYSDL2_DLL_PATH="$PYUI_DLL"
+        export LD_LIBRARY_PATH="$PYUI_DLL:/mnt/SDCARD/spruce/flip/lib:/usr/lib"
+        PYUI_BIN=/mnt/SDCARD/spruce/flip/bin/MainUI
+
+        # BaseOS runs no udev and no mdev - devtmpfs creates the nodes and
+        # nothing else is listening. SDL's joystick layer goes looking for
+        # udev during SDL_Init and hangs there, which strands PyUI before it
+        # ever opens the display. BaseOS documents this and NextUI sets the
+        # same variable.
+        export SDL_JOYSTICK_DISABLE_UDEV=1
+
+        # Name the driver rather than letting SDL probe: the mali build is
+        # the only backend on this box that can reach the panel, and a
+        # failure to select it should be a loud error, not a silent
+        # fallback to dummy.
+        case "$PYUI_DLL" in
+            *dll-mali) export SDL_VIDEODRIVER=mali ;;
+        esac
+
+        if [ "$PLATFORM" = "AnbernicXX720480" ]; then
+            DEVICE="ANBERNIC_RGXX720480"
+        elif [ "$PLATFORM" = "AnbernicXX720480NoStick" ]; then
+            # The pad-layout platforms are a shell-side split; PyUI has nothing
+            # that differs by sticks, so they share the panel's identity.
+            DEVICE="ANBERNIC_RGXX720480"
+        elif [ "$PLATFORM" = "AnbernicXX640480NoStick" ]; then
+            DEVICE="ANBERNIC_RGXX640480"
+        elif [ "$PLATFORM" = "AnbernicXX640480OneStick" ]; then
+            DEVICE="ANBERNIC_RGXX640480"
+        elif [ "$PLATFORM" = "AnbernicRG28XX" ]; then
+            DEVICE="ANBERNIC_RG28XX"
+        elif [ "$PLATFORM" = "AnbernicXX640480" ]; then
+            DEVICE="ANBERNIC_RGXX640480"
+        elif [ "$PLATFORM" = "AnbernicRGCubeXX" ]; then
+            DEVICE="ANBERNIC_RGCUBEXX"
+        else
+            DEVICE="ANBERNIC_RGXX640480"
+        fi
+
+        "$PYUI_BIN" \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device "$DEVICE" \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json  "$@"
+
+    ;;
+
+############################################################
+# Miniloong Pocket 1 (Rockchip RK3566, under dArkMoss)
+############################################################
+    "Miniloong" )
+        # Same base and payload as the RGB30 below; see that block.
+        export PYSDL2_DLL_PATH="/mnt/SDCARD/App/PyUI/dll"
+        export LD_LIBRARY_PATH="/mnt/SDCARD/App/PyUI/dll:/mnt/SDCARD/spruce/flip/lib:/usr/lib/aarch64-linux-gnu"
+        export SDL_VIDEODRIVER=kmsdrm
+        export SDL_AUDIODRIVER=alsa
+
+        log_message "Starting PyUI on $PLATFORM"
+        /mnt/SDCARD/spruce/flip/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device MINILOONG_POCKET1 \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json  "$@"
+    ;;
+
+############################################################
+# Rockchip RK3566 or RK3326 devices, under dArkMoss
+############################################################
+    "RGB30" | "RGB20SX" | "A10Mini" | "A10MiniV4" | "XUMiniM" | "G350" | "V10" | "RG351P" | "RG353M" )
+        # The base is dArkMoss - Debian trixie, glibc 2.41 - not the MossySpruce
+        # this block used to name. It ships libdrm, a Mali Bifrost G52 blob that
+        # libEGL/libGLESv2/libgbm all symlink to, and SDL2 2.32.4 with a KMSDRM
+        # backend, so the mali-fbdev dance the H700 line needs does not apply.
+        # Use our normal dll.
+        #
+        # The blob is GLES-only: it advertises no desktop GL EGL config at all.
+        # That is handled in PyUI, not here - Device.wants_gles_context() ->
+        # display.py asks SDL for an ES profile before the window is made. There
+        # is no environment variable for SDL's gl_config.profile_mask, so it has
+        # to be code.
+        export PYSDL2_DLL_PATH=/mnt/SDCARD/App/PyUI/dll
+        # /usr/lib/aarch64-linux-gnu, not /usr/lib: on Debian aarch64 that is
+        # where libEGL, libgbm and libMali actually live.
+        #
+        # NOTE, not yet acted on: flip/lib sits ahead of the system path here,
+        # and on a Debian base that is backwards. Measured against the card, the
+        # bundled SDL2 and python3.10 need nothing from flip/lib but glibc, and
+        # of the stdlib extension modules only Tkinter does - while flip/lib
+        # carries 59 buster-era libraries trixie also has, among them libsystemd
+        # (LIBSYSTEMD_245 against the base's 257), libwayland-client and
+        # libdecor-0, all of which SDL2 dlopens. Nothing PyUI or RetroArch calls
+        # is actually broken by it today, which is why this is a note and not a
+        # change: this exact ordering is the one PyUI is known to boot with, and
+        # swapping it is a deliberate test, not a tidy-up.
+        export LD_LIBRARY_PATH="/mnt/SDCARD/App/PyUI/dll:/mnt/SDCARD/spruce/flip/lib:/usr/lib/aarch64-linux-gnu"
+
+        # MinUI's own launcher sets these on this hardware, which is the best
+        # evidence available that they are the working combination.
+        export SDL_VIDEODRIVER=kmsdrm
+        export SDL_AUDIODRIVER=alsa
+
+        log_message "Starting PyUI on $PLATFORM"
+        /mnt/SDCARD/spruce/flip/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device "$(device_names | head -n 1)" \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json  "$@"
+
+    ;;
+
+############################################################
+# Miyoo Mini Flip
+############################################################
+    "MiyooMini" )
+
+        skip_freemma=0
+        redirect_output=1
+
+        for arg in "$@"; do
+            if [ "$arg" = "-buttonListenerMode" ]; then
+                skip_freemma=1
+                redirect_output=0
+                break
+            fi
+        done
+
+        export PATH="/mnt/SDCARD/spruce/miyoomini/bin:$PATH"
+        export PYSDL2_DLL_PATH="/mnt/SDCARD/spruce/miyoomini/lib"
+        export LD_LIBRARY_PATH="/mnt/SDCARD/spruce/bin/python/lib:$LD_LIBRARY_PATH"
+
+        export SDL_VIDEODRIVER=mmiyoo
+        export SDL_AUDIODRIVER=mmiyoo
+        export EGL_VIDEODRIVER=mmiyoo
+        export SDL_MMIYOO_DOUBLE_BUFFER=1
+        # Menu sounds go to audioserver through /dev/dsp (audio_player_oss.py).
+        # Its boot-time start fails on some units, so make sure it is up.
+        pidof audioserver >/dev/null || { audioserver >/dev/null 2>&1 & sleep 0.5; }
+
+        # freemma frees what an exited graphics app left behind and clears the
+        # framebuffer. MI_SYS_Init in the first new process after an audioserver start
+        # (and at times after a long idle) waits ~2 s in the kernel, so it runs while
+        # Python imports; PyUI waits for this PID before it touches MI or SDL. Started
+        # inside $( ) so that init reaps it.
+        unset PYUI_MMA_CLEANUP_PID
+        if [ $skip_freemma -eq 0 ]; then
+            PYUI_MMA_CLEANUP_PID="$(freemma >/dev/null 2>&1 & echo $!)"
+            export PYUI_MMA_CLEANUP_PID
+        fi
+        export LD_PRELOAD="/mnt/SDCARD/miyoo/lib/libpadsp.so"
+
+        miyoo_device=$(get_miyoo_mini_variant)
+
+        cmd="/mnt/SDCARD/spruce/bin/python/bin/MainUI \
+                /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+                -device $miyoo_device \
+                -logDir /mnt/SDCARD/Saves/spruce \
+                -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+                -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        elif [ "$redirect_output" -eq 1 ]; then
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+        else
+            "$@" >/dev/null 2>&1
+        fi
+
+    ;;
+############################################################
+# GKD Pixel 2
+############################################################
+    "Pixel2" )
+        redirect_output=0
+        cd /usr/bin/
+        export PYSDL2_DLL_PATH="/usr/lib"
+
+        cmd="/usr/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device GKD_PIXEL2 \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        elif [ "$redirect_output" -eq 1 ]; then
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+        else
+            "$@" >/dev/null 2>&1
+        fi
+    ;;
+
+############################################################
+# MagicX A133P family (Mini Zero 28, Zero 40, XU20 V32)
+############################################################
+
+    "Zero28" | "Zero40" | "XU20" )
+
+        cd /usr/magicx/bin
+        export PYSDL2_DLL_PATH="$(magicx_pyui_sdl_dir)"
+        if [ "$PLATFORM" = "Zero40" ]; then
+            DEVICE="MAGICX_ZERO40"
+        elif [ "$PLATFORM" = "XU20" ]; then
+            DEVICE="MAGICX_XU20"
+        else
+            DEVICE="MAGICX_ZERO28"
+        fi
+
+        cmd="/mnt/SDCARD/spruce/flip/bin/MainUI \
+            /mnt/SDCARD/App/PyUI/main-ui/mainui.py \
+            -device $DEVICE \
+            -logDir /mnt/SDCARD/Saves/spruce \
+            -pyUiConfig /mnt/SDCARD/App/PyUI/py-ui-config.json \
+            -cfwConfig /mnt/SDCARD/Saves/spruce/spruce-config.json"
+
+        # Convert to positional args
+        set -- $cmd "$@"
+
+        log_message "Starting PyUI on $PLATFORM"
+        if [ $button_listener_mode -eq 1 ]; then
+            "$@"
+        else
+            # Bring-up platform: keep PyUI's stdout/stderr and record how it ended.
+            # A crash in the SDL2 blob or the GPU stack prints nothing to pyui.log.
+            "$@" >> /mnt/SDCARD/App/PyUI/run.txt 2>&1
+            log_message "PyUI on $PLATFORM exited with status $?"
+        fi
+    ;;
+
+esac
