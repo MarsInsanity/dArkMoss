@@ -8,14 +8,14 @@
 # The payload is an uncompressed tar: manifest, apply.sh, remove.list,
 # boot.tar.gz (the boot partition), rootfs.tar.gz (every file the dArkMoss
 # build added to or changed in the Debian rootfs), packages.tar.gz (every
-# package that differs from dmupd-baseline.txt, whole, with its dpkg records)
-# and resource.img.gz (U-Boot's resource partition: dtb, charging animation,
-# power-on logo). Everything is checked against the manifest before anything
-# is written. The rootfs layer and the packages go on first, then the boot
-# files, renamed into place with the previous set kept in /boot/previous, then
+# package that differs from dmupd-baseline.txt, whole, with its dpkg records),
+# resource.img.gz (U-Boot's resource partition: dtb, charging animation,
+# power-on logo) and on rk3326 loader.img.gz (idbloader, U-Boot, trust).
+# Everything is checked against the manifest before anything is written. The
+# rootfs layer and the packages go on first, then the boot files, renamed into place with the previous set kept in /boot/previous, then
 # the resource partition is written whole, so a logo set with the Boot Logo app
-# goes back to stock and that app has to be run again. A reboot afterwards is
-# the caller's job.
+# goes back to stock and that app has to be run again, then the loader. A reboot
+# afterwards is the caller's job.
 
 set -u
 
@@ -56,6 +56,13 @@ if [ -n "$(field resource_sha256)" ]; then
     HAVE_RESOURCE=1
 fi
 
+HAVE_LOADER=0
+if [ -n "$(field loader_sha256)" ]; then
+    GOT="$(tar -xOf "$PAYLOAD" loader.img.gz | gzip -dc | sha256sum | cut -d' ' -f1)"
+    [ "$GOT" = "$(field loader_sha256)" ] || fail "loader.img.gz checksum mismatch"
+    HAVE_LOADER=1
+fi
+
 # The unit is in os-release; images from before the SPRUCE_PLATFORM stamp only
 # carry HW_DEVICE.
 HAVE_PLATFORM="$(sed -n 's/^SPRUCE_PLATFORM="\(.*\)"/\1/p' /etc/os-release)"
@@ -81,6 +88,22 @@ BOOT_NEED_KB="$(tar -xOf "$PAYLOAD" boot.tar.gz | gzip -dc | wc -c)"
 BOOT_NEED_KB=$((BOOT_NEED_KB / 1024 + 1024))
 BOOT_FREE_KB="$(df -k "$BOOT" | awk 'END {print $4}')"
 [ "$BOOT_FREE_KB" -ge "$BOOT_NEED_KB" ] || fail "$BOOT has ${BOOT_FREE_KB}K free, need ${BOOT_NEED_KB}K"
+
+LOADER_OFFSET=32768
+if [ "$HAVE_LOADER" = 1 ]; then
+    LOADER_DISK="$(lsblk -no PKNAME "$(findmnt -no SOURCE "$BOOT")")"
+    [ -b "/dev/$LOADER_DISK" ] || fail "cannot find the disk holding $BOOT"
+    tar -xOf "$PAYLOAD" loader.img.gz | gzip -dc > "$WORK/loader.img" || fail "loader did not extract"
+    LOADER_SIZE="$(wc -c < "$WORK/loader.img")"
+    for part in /sys/block/"$LOADER_DISK"/"$LOADER_DISK"*/start; do
+        [ "$(($(cat "$part") * 512))" -ge "$((LOADER_OFFSET + LOADER_SIZE))" ] \
+            || fail "a partition on $LOADER_DISK overlaps the loader"
+    done
+fi
+loader_matches() {
+    dd if="/dev/$LOADER_DISK" bs=1M iflag=direct,skip_bytes,count_bytes skip="$LOADER_OFFSET" count="$LOADER_SIZE" 2>/dev/null \
+        | cmp -s - "$WORK/loader.img"
+}
 
 # RGB30 image: rgb30versioncheck.sh swaps the dtb on /boot for the v2 board or
 # the RGB20SX at every boot. Note which variant is live now so the same one is
@@ -185,6 +208,13 @@ if [ "$HAVE_RESOURCE" = 1 ]; then
     tar -xOf "$PAYLOAD" resource.img.gz | gzip -dc | dd of="$RESOURCE_DEV" bs=1M conv=fsync 2>/dev/null \
         || fail "resource partition write failed; the boot files and rootfs are already updated"
     sync
+fi
+
+if [ "$HAVE_LOADER" = 1 ] && ! loader_matches; then
+    say "writing the loader"
+    dd if="$WORK/loader.img" of="/dev/$LOADER_DISK" bs=1M oflag=seek_bytes seek="$LOADER_OFFSET" conv=fsync,notrunc 2>/dev/null \
+        || fail "loader write failed; the boot files and rootfs are already updated"
+    loader_matches || fail "loader did not read back correctly; the boot files and rootfs are already updated"
 fi
 
 say "done: $(. /etc/os-release; echo "${DARKMOSS_VERSION:-$OS_VERSION}") is installed, reboot to run it"

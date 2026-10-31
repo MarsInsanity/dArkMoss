@@ -56,10 +56,12 @@ fi
 # Opt-in fixes from patches/rk3326/uboot: a unit lists only what it was tested with.
 # uboot-dtb: U-Boot loads uboot.dtb, whatever hwrev reads; build_kernel.sh ships it.
 # panel-id: read the panel's ID and switch to the sibling panel node it names.
+# low-battery: boot down to 3.1 V instead of 3.53 V.
 case "$UNIT" in
-  g350)   UBOOT_OPTIN="uboot-dtb panel-id" ;;
-  a10mini) UBOOT_OPTIN="panel-id" ;;
-  xumini) UBOOT_OPTIN="uboot-dtb" ;;
+  g350)   UBOOT_OPTIN="uboot-dtb panel-id low-battery" ;;
+  a10mini) UBOOT_OPTIN="panel-id low-battery" ;;
+  xumini) UBOOT_OPTIN="uboot-dtb low-battery" ;;
+  v10)    UBOOT_OPTIN="low-battery" ;;
   r36sclone) UBOOT_OPTIN="uboot-dtb panel-id" ;;
   *)      UBOOT_OPTIN="" ;;
 esac
