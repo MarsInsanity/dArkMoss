@@ -42,3 +42,21 @@ assert ev(1,312,1) == [(CI.MENU, KS.PRESS)] and ev(1,312,0) == [(CI.MENU, KS.REL
 assert ev(1,313,1) == [(CI.R3, KS.PRESS)]
 assert ev(1,314,1) == [(CI.L2, KS.PRESS)] and ev(1,309,1) == [(CI.R1, KS.PRESS)]
 print("mapping OK")
+
+# Volume: a hardware wheel after the codec, so the codec is pinned at full.
+from devices.darkmoss.darkmoss_device import DarkmossDevice
+sent = []
+DarkmossDevice._set_volume = lambda self, v: sent.append(v) or v
+assert dev.supports_volume() is False
+dev._set_volume(35)
+assert sent == [100], sent
+class _Cfg:
+    vol = 50; saved = 0
+    def reload_config(self): pass
+    def get_volume(self): return self.vol
+    def set_volume(self, v): self.vol = v
+    def save_config(self): self.saved += 1
+dev.system_config = _Cfg()
+dev.volume_down()
+assert dev.system_config.vol == 100 and sent[-1] == 100
+print("volume OK")

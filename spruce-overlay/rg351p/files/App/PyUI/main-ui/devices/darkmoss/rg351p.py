@@ -116,3 +116,18 @@ class RG351P(V10):
 
     def _mapping_provider(self, key_mappings):
         return RG351PKeyMappingProvider(key_mappings)
+
+    # Volume is a hardware wheel after the codec: no volume setting or
+    # indicator, and the codec stays at full (RG351P.sh's set_volume does the
+    # same on the shell side).
+    def supports_volume(self):
+        return False
+
+    def _set_volume(self, volume):
+        return super()._set_volume(100)
+
+    def change_volume(self, amount):
+        self._set_volume(100)
+        if self.system_config.get_volume() != 100:
+            self.system_config.set_volume(100)
+            self.system_config.save_config()

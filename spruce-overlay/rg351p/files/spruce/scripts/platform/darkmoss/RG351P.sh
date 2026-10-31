@@ -14,6 +14,33 @@ set_event_arg_for_idlemon() {
     EVENT_ARG="-e $EVENT_PATH_READ_INPUTS_SPRUCE"
 }
 
+# Volume is the hardware wheel, after the codec. spruce keeps the codec at
+# full and stores full, whatever level it is asked for: the setting is hidden
+# in PyUI (rg351p.py's supports_volume) and nothing here steps it. The one
+# exception is a temporary mute that is not saved (sleep_helper.sh mutes with
+# "set_volume 0 false" so waking to shut down is silent, then restores).
+set_volume() {
+    if [ "$1" = "0" ] && [ "${2:-true}" = "false" ]; then
+        amixer -q sset -M "${VOLUME_CONTROL:-Master}" 0% 2>/dev/null
+        log_message "$PLATFORM: codec muted (temporary)"
+        return 0
+    fi
+    amixer -q sset -M "${VOLUME_CONTROL:-Master}" 100% 2>/dev/null
+    bt_headset_volume 20
+    apply_playback_path
+    if [ "${2:-true}" = "true" ]; then
+        save_volume_to_config_file 20 2>/dev/null
+    fi
+}
+
+volume_up() {
+    :
+}
+
+volume_down() {
+    :
+}
+
 # A real stick and a hat d-pad: nothing to swap.
 swap_dpad_analog_toggle() {
     :

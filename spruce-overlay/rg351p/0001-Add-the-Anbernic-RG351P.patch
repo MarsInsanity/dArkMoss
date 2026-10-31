@@ -1,6 +1,6 @@
-From a459633c60c4fc3ffd5e08b2426a5a93421bca05 Mon Sep 17 00:00:00 2001
+From eae07bf59a018f571c2ae34f5d6d725873b8b2e7 Mon Sep 17 00:00:00 2001
 From: MarsInsanity <mazemoyux@gmail.com>
-Date: Sat, 31 Oct 2026 17:11:22 +0000
+Date: Sat, 31 Oct 2026 19:29:56 +0000
 Subject: [PATCH] Add the Anbernic RG351P (dArkMoss rg351p unit)
 
 The RG351P runs dArkMoss's rg351p unit: the rg351 kernel with
@@ -18,6 +18,9 @@ V10.cfg. What differs:
 - No menu button: SELECT+START (the V10's chord) or the stick click is MENU.
   PyUI ignores the stick axes in the menus (their range is not the V10's
   +-1800 the darkmoss provider is sized for).
+- Volume is a hardware wheel after the codec: the codec stays at full and
+  stored volume at max (a temporary sleep mute aside), and PyUI hides the
+  volume setting and indicator (supports_volume, as the Miyoo Mini).
 - Rumble is on pwm0, not a force-feedback pad: vibrate drives the PWM through
   sysfs and always leaves it disabled.
 
@@ -38,7 +41,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  App/PixelReader/launch.sh                     |    2 +-
  App/PyUI/launch.sh                            |    2 +-
  .../devices/darkmoss/json/rg351p-system.json  |   10 +
- App/PyUI/main-ui/devices/darkmoss/rg351p.py   |  118 +
+ App/PyUI/main-ui/devices/darkmoss/rg351p.py   |  133 +
  App/PyUI/main-ui/devices/device_factory.py    |    3 +
  Emu/NDS/config/drastic-RG351P.cfg             |  160 +
  Emu/NDS/config/drastic-RG351P.cfg.bak         |  160 +
@@ -47,9 +50,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  spruce/flags/first_boot_RG351P.lock           |    0
  spruce/scripts/emu/lib/drastic_functions.sh   |    1 +
  spruce/scripts/helperFunctions.sh             |    1 +
- spruce/scripts/platform/darkmoss/RG351P.cfg   |  181 +
- spruce/scripts/platform/darkmoss/RG351P.sh    |  114 +
- 18 files changed, 4184 insertions(+), 6 deletions(-)
+ spruce/scripts/platform/darkmoss/RG351P.cfg   |  185 +
+ spruce/scripts/platform/darkmoss/RG351P.sh    |  141 +
+ 18 files changed, 4230 insertions(+), 6 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/rg351p.py
  create mode 100644 Emu/NDS/config/drastic-RG351P.cfg
@@ -140,12 +143,12 @@ index ad6e73f1..2849ae1f 100644
          # libEGL/libGLESv2/libgbm all symlink to, and SDL2 2.32.4 with a KMSDRM
 diff --git a/App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json b/App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
 new file mode 100644
-index 00000000..da241866
+index 00000000..dcd3433f
 --- /dev/null
 +++ b/App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
 @@ -0,0 +1,10 @@
 +{
-+        "vol": 10,
++        "vol": 20,
 +        "backlight": 10,
 +        "brightness": 10,
 +        "contrast": 10,
@@ -156,10 +159,10 @@ index 00000000..da241866
 +}
 diff --git a/App/PyUI/main-ui/devices/darkmoss/rg351p.py b/App/PyUI/main-ui/devices/darkmoss/rg351p.py
 new file mode 100644
-index 00000000..0b5b2ec5
+index 00000000..7a39d98c
 --- /dev/null
 +++ b/App/PyUI/main-ui/devices/darkmoss/rg351p.py
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,133 @@
 +import os
 +
 +from controller.controller_inputs import ControllerInput
@@ -278,6 +281,21 @@ index 00000000..0b5b2ec5
 +
 +    def _mapping_provider(self, key_mappings):
 +        return RG351PKeyMappingProvider(key_mappings)
++
++    # Volume is a hardware wheel after the codec: no volume setting or
++    # indicator, and the codec stays at full (RG351P.sh's set_volume does the
++    # same on the shell side).
++    def supports_volume(self):
++        return False
++
++    def _set_volume(self, volume):
++        return super()._set_volume(100)
++
++    def change_volume(self, amount):
++        self._set_volume(100)
++        if self.system_config.get_volume() != 100:
++            self.system_config.set_volume(100)
++            self.system_config.save_config()
 diff --git a/App/PyUI/main-ui/devices/device_factory.py b/App/PyUI/main-ui/devices/device_factory.py
 index 4f92e82b..004dca92 100644
 --- a/App/PyUI/main-ui/devices/device_factory.py
@@ -4095,10 +4113,10 @@ index a804029f..c14be87e 100644
          XU20)             echo "MAGICX_XU20";   echo "MAGICX_A133P" ;;
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.cfg b/spruce/scripts/platform/darkmoss/RG351P.cfg
 new file mode 100644
-index 00000000..685c1cce
+index 00000000..69b319c3
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.cfg
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,185 @@
 +#!/bin/sh
 +# Anbernic RG351P (RK3326, 320x480 portrait panel shown as 480x320) on
 +# dArkMoss's rg351p unit: the rg351 kernel with rk3326-rg351p-linux.dtb. Same
@@ -4226,6 +4244,10 @@ index 00000000..685c1cce
 +
 +export B_SELECT="1 311"
 +export B_START="1 310"
++# Volume is a hardware wheel after the codec, not a key: spruce keeps the
++# codec at full (RG351P.sh's set_volume). These are KEY_VOLUMEUP/DOWN, which
++# nothing on the RG351P reports; not DOESNT_EXIST, which would turn SELECT+L3/R3
++# into volume chords in buttons_watchdog.sh.
 +export B_VOLUP="1 115"
 +export B_VOLDOWN="1 114"
 +
@@ -4282,10 +4304,10 @@ index 00000000..685c1cce
 +RA_HOME_VAL="nul"
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.sh b/spruce/scripts/platform/darkmoss/RG351P.sh
 new file mode 100644
-index 00000000..376fa60f
+index 00000000..09dbc42e
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.sh
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,141 @@
 +#!/bin/sh
 +# Anbernic RG351P device functions. Everything the base OS decides is in
 +# dArkMossCommon.sh; this file holds what is particular to this unit. Board,
@@ -4300,6 +4322,33 @@ index 00000000..376fa60f
 +
 +set_event_arg_for_idlemon() {
 +    EVENT_ARG="-e $EVENT_PATH_READ_INPUTS_SPRUCE"
++}
++
++# Volume is the hardware wheel, after the codec. spruce keeps the codec at
++# full and stores full, whatever level it is asked for: the setting is hidden
++# in PyUI (rg351p.py's supports_volume) and nothing here steps it. The one
++# exception is a temporary mute that is not saved (sleep_helper.sh mutes with
++# "set_volume 0 false" so waking to shut down is silent, then restores).
++set_volume() {
++    if [ "$1" = "0" ] && [ "${2:-true}" = "false" ]; then
++        amixer -q sset -M "${VOLUME_CONTROL:-Master}" 0% 2>/dev/null
++        log_message "$PLATFORM: codec muted (temporary)"
++        return 0
++    fi
++    amixer -q sset -M "${VOLUME_CONTROL:-Master}" 100% 2>/dev/null
++    bt_headset_volume 20
++    apply_playback_path
++    if [ "${2:-true}" = "true" ]; then
++        save_volume_to_config_file 20 2>/dev/null
++    fi
++}
++
++volume_up() {
++    :
++}
++
++volume_down() {
++    :
 +}
 +
 +# A real stick and a hat d-pad: nothing to swap.
