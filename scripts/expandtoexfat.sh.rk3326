@@ -12,7 +12,10 @@ height="20"
 width="60"
 
 primary_block=mmcblk0
-partition_type=$(df -T | grep mmcblk0p2 | cut -d ' ' -f 2)
+# findmnt, not "df -T | grep mmcblk0p2": booted without an initramfs (V10,
+# RG351P) the rootfs shows as /dev/root, the grep found nothing, and the rootfs
+# was never grown ("Don't know how to grow a  file system").
+partition_type=$(findmnt -no FSTYPE /)
 
 ROOTFS_SECTORS=$((11 * 1024 * 1024 * 2))
 disk_sectors=$(cat /sys/block/${primary_block}/size)

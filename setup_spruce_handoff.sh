@@ -156,6 +156,7 @@ case "$UNIT" in
   a10mini)   HW_DEVICE_NAME="A10 Mini" ;;
   g350)      HW_DEVICE_NAME="G350" ;;
   v10)       HW_DEVICE_NAME="Powkiddy V10" ;;
+  rg351p)    HW_DEVICE_NAME="Anbernic RG351P" ;;
   xumini)    HW_DEVICE_NAME="XU Mini M" ;;
   *)         HW_DEVICE_NAME="" ;;
 esac
@@ -173,6 +174,7 @@ case "$UNIT" in
   a10mini)   SPRUCE_PLATFORM_NAME="A10Mini" ;;
   g350)      SPRUCE_PLATFORM_NAME="G350" ;;
   v10)       SPRUCE_PLATFORM_NAME="V10" ;;
+  rg351p)    SPRUCE_PLATFORM_NAME="RG351P" ;;
   xumini)    SPRUCE_PLATFORM_NAME="XUMiniM" ;;
   *)         SPRUCE_PLATFORM_NAME="" ;;
 esac
@@ -192,7 +194,8 @@ fi
 #     ifupdown has no interfaces file and the V10 has no Wi-Fi chip; NM still
 #     runs for spruce's nmcli and dbus-activates wpa_supplicant if ever needed
 #   keyboard-setup   0.6 s, no keyboard on a handheld
-if [ "$UNIT" == "v10" ]; then
+# The RG351P has no Wi-Fi chip either (USB dongle only), so it takes the same trims.
+if [ "$UNIT" == "v10" ] || [ "$UNIT" == "rg351p" ]; then
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message networking wifi_importer NetworkManager-wait-online wpa_supplicant 2>/dev/null; systemctl mask keyboard-setup.service" || true
 fi
 # fstab: the 4.4 kernel has no compression levels, so "compress=zlib:1" made
