@@ -198,6 +198,21 @@ fi
 if [ "$UNIT" == "v10" ] || [ "$UNIT" == "rg351p" ]; then
   sudo chroot Arkbuild/ bash -c "systemctl disable welcome-message networking wifi_importer NetworkManager-wait-online wpa_supplicant 2>/dev/null; systemctl mask keyboard-setup.service" || true
 fi
+# RG351P: the pad is a USB HID device, "OpenSimHardware OSH PB Controller"
+# (1209:3100), that also declares a keyboard collection (the kernel logs it as
+# "USB HID v1.11 Keyboard"). systemd's input_id (257) sees its keyboard keys
+# (LEFTCTRL, CAPSLOCK, NUMLOCK, INSERT...) and decides it is "a keyboard, not a
+# joystick", so ID_INPUT_JOYSTICK is never set. RetroArch's udev joypad driver
+# and SDL's joystick scan only open devices udev calls joysticks: the menus
+# (which read the node directly) worked and every game had no controls. ArkOS's
+# older udev had no such heuristic. Restore the joystick tag after input_id
+# (60-input-id.rules) has run.
+if [ "$UNIT" == "rg351p" ]; then
+  cat <<'EOF' | sudo tee Arkbuild/etc/udev/rules.d/70-rg351p-joypad.rules >/dev/null
+# dArkMoss: the RG351P's internal pad is a joystick, not a keyboard.
+SUBSYSTEM=="input", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3100", ENV{ID_INPUT_JOYSTICK}="1", ENV{ID_INPUT_KEYBOARD}=""
+EOF
+fi
 # fstab: the 4.4 kernel has no compression levels, so "compress=zlib:1" made
 # systemd-remount-fs fail on every boot; plain "zlib" is the same algorithm.
 if [ "$CHIPSET" == "rk3326" ]; then
