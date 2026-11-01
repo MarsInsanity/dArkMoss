@@ -1,4 +1,4 @@
-From 96ce355ee5fb1a68af7365841b0e3b3f0929575d Mon Sep 17 00:00:00 2001
+From dcfbadc9759243ec2058f30e0ebd95018ebb3193 Mon Sep 17 00:00:00 2001
 From: dArkMoss <dArkMoss@localhost>
 Date: Thu, 29 Oct 2026 06:11:01 +0000
 Subject: [PATCH 1/2] arm64: dts: rockchip: Add rk3326-r36sclone-linux (R36S
@@ -12,13 +12,14 @@ call "Panel 8", rk3326-r36sclone-panel9-linux for the other one.
 Changed from bsp.4.4: both panels boot their ~60 Hz "adjust" timing; no
 arkos4clone-leds node or uboot-*-delay-ms; the second SD slot's
 card-detect pull-up is defined in the board file, not rk3326-linux.dtsi;
-plain px30 OPPs, not bsp.4.4's rk3326-oc.dtsi. The analog sticks need
+plain px30 OPPs, not bsp.4.4's rk3326-oc.dtsi; the headphone detect pin
+active high, as on the unit this was tested on. The analog sticks need
 the odroidgo3-joypad from the next patch (amux-channel-mapping).
 ---
  arch/arm64/boot/dts/rockchip/Makefile         |    2 +
- .../dts/rockchip/rk3326-r36sclone-linux.dts   | 1024 +++++++++++++++++
+ .../dts/rockchip/rk3326-r36sclone-linux.dts   | 1028 +++++++++++++++++
  .../rk3326-r36sclone-panel9-linux.dts         |  197 ++++
- 3 files changed, 1223 insertions(+)
+ 3 files changed, 1227 insertions(+)
  create mode 100644 arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts
  create mode 100644 arch/arm64/boot/dts/rockchip/rk3326-r36sclone-panel9-linux.dts
 
@@ -37,10 +38,10 @@ index 04f40994b..3a787c199 100644
  subdir-y	:= $(dts-dirs)
 diff --git a/arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts b/arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts
 new file mode 100644
-index 000000000..5277a3803
+index 000000000..afa1f4cc3
 --- /dev/null
 +++ b/arch/arm64/boot/dts/rockchip/rk3326-r36sclone-linux.dts
-@@ -0,0 +1,1024 @@
+@@ -0,0 +1,1028 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 +/*
 + * Copyright (c) 2025 kk&lcdyk
@@ -56,6 +57,9 @@ index 000000000..5277a3803
 + *  - no uboot-*-delay-ms (dArkMoss's U-Boot has its own dtb)
 + *  - the second SD slot's card-detect pull-up is defined here, not in
 + *    rk3326-linux.dtsi
++ *  - the headphone detect pin is active high, as on the G80CA-MB V1.2 unit
++ *    this was tested on (dArkOSRE's 20250422 dtb has it so; its 20250423
++ *    dtb and bsp.4.4 have it active low)
 + */
 +
 +/dts-v1/;
@@ -303,7 +307,8 @@ index 000000000..5277a3803
 +		/*"IN1P", "Mic Jack",*/
 +		"Headphone Jack", "HPOL",
 +		"Headphone Jack", "HPOR";
-+		simple-audio-card,hp-det-gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>;
++		/* Active high, as on the tested unit (dArkOSRE's 20250422 dtb); bsp.4.4 has it low */
++		simple-audio-card,hp-det-gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&hp_det>;
 +		simple-audio-card,cpu {

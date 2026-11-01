@@ -136,6 +136,6 @@ driver and button codes. Nothing on the spruce card changes.
   on (wired adb) or off (WiFi dongle).
 - Headphones: `hpjackd` sets the rk817 Playback Path to HP while the jack
   switch is on and SPK while it is off. The dts reads the detect pin active
-  low (arkos4clone, dArkOSRE's 20250423 dtb). On a unit tested on 2026-11-01
-  it reads the other way, as dArkOSRE's 20250422 dtb has it, and
-  `/boot/headphones-invert` made it correct; `R36S-PANEL.txt` tells users.
+  high, as on the unit this branch is for (dArkOSRE's 20250422 dtb; its
+  20250423 dtb and arkos4clone have it active low). On a board that reads it
+  the other way, `/boot/headphones-invert` flips it; `R36S-PANEL.txt` says so.
