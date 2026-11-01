@@ -1,6 +1,6 @@
-From cfb25004de018f9134f6d8607490be236e7c272a Mon Sep 17 00:00:00 2001
+From e16b70f8d11c202615afbc0e7d83ee4a904f2c54 Mon Sep 17 00:00:00 2001
 From: MarsInsanity <mazemoyux@gmail.com>
-Date: Sun, 1 Nov 2026 05:35:27 +0000
+Date: Sun, 1 Nov 2026 05:36:39 +0000
 Subject: [PATCH] Add the Anbernic RG351P (dArkMoss rg351p unit)
 
 The RG351P runs dArkMoss's rg351p unit: the rg351 kernel with
@@ -26,6 +26,10 @@ V10.cfg. What differs:
 - Volume is a hardware wheel after the codec: the codec stays at full and
   stored volume at max (a temporary sleep mute aside), and PyUI hides the
   volume setting and indicator (supports_volume, as the Miyoo Mini).
+- Headphones: the rk817's Playback Path is held at SPK_HP, as ArkOS sets it
+  on its RK3326 units, so both outputs are powered and the kernel's jack
+  detection mutes the speaker. On SPK, plugging in muted the speaker and the
+  headphones got nothing (seen on hardware).
 - Rumble is on pwm0, not a force-feedback pad: vibrate drives the PWM through
   sysfs. It sets polarity to normal first: the 4.4 Rockchip driver reports an
   unclaimed PWM as inversed, where duty 0 and even disabled are high, which
@@ -62,10 +66,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  spruce/flags/first_boot_RG351P.lock           |    0
  spruce/scripts/emu/lib/drastic_functions.sh   |    1 +
  spruce/scripts/helperFunctions.sh             |    1 +
- spruce/scripts/platform/darkmoss/RG351P.cfg   |  197 +
- spruce/scripts/platform/darkmoss/RG351P.sh    |  162 +
+ spruce/scripts/platform/darkmoss/RG351P.cfg   |  199 +
+ spruce/scripts/platform/darkmoss/RG351P.sh    |  172 +
  .../platform/darkmoss/dArkMossCommon.sh       |    5 +-
- 19 files changed, 4271 insertions(+), 7 deletions(-)
+ 19 files changed, 4283 insertions(+), 7 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/rg351p.py
  create mode 100644 Emu/NDS/config/drastic-RG351P.cfg
@@ -4130,10 +4134,10 @@ index a804029f..c14be87e 100644
          XU20)             echo "MAGICX_XU20";   echo "MAGICX_A133P" ;;
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.cfg b/spruce/scripts/platform/darkmoss/RG351P.cfg
 new file mode 100644
-index 00000000..26175b80
+index 00000000..3100db55
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.cfg
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,199 @@
 +#!/bin/sh
 +# Anbernic RG351P (RK3326, 320x480 portrait panel shown as 480x320) on
 +# dArkMoss's rg351p unit: the rg351 kernel with rk3326-rg351p-linux.dtb. Same
@@ -4206,8 +4210,10 @@ index 00000000..26175b80
 +#####   OTHER HARDWARE FEATURES AND INTERFACES   #####
 +  ##################################################
 +
-+export AUDIO_PATH_SPK="SPK"
-+export AUDIO_PATH_HP="HP"
++# Routing is RG351P.sh's apply_playback_path (SPK_HP, the kernel picks the
++# output from the jack); these two are what dArkMossCommon's would use.
++export AUDIO_PATH_SPK="SPK_HP"
++export AUDIO_PATH_HP="SPK_HP"
 +export VOLUME_CONTROL="Playback"
 +export DARKMOSS_VOLUME_READ_MAPPED=1
 +export DARKMOSS_SEED_SYSTEM_JSON=1
@@ -4333,10 +4339,10 @@ index 00000000..26175b80
 +RA_HOME_VAL="nul"
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.sh b/spruce/scripts/platform/darkmoss/RG351P.sh
 new file mode 100644
-index 00000000..7cbd452c
+index 00000000..d5948f38
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.sh
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,172 @@
 +#!/bin/sh
 +# Anbernic RG351P device functions. Everything the base OS decides is in
 +# dArkMossCommon.sh; this file holds what is particular to this unit. Board,
@@ -4344,9 +4350,19 @@ index 00000000..7cbd452c
 +
 +. "/mnt/SDCARD/spruce/scripts/platform/darkmoss/dArkMossCommon.sh"
 +
-+# The rk817 codec switches to the jack itself, as on the V10.
++# The rk817's "Playback Path" has to be SPK_HP, as ArkOS sets it on its RK3326
++# units (dArkMoss's spktoggle.sh): both outputs powered, and the kernel's jack
++# detection (hp-det-gpio in rk3326-rg351p-linux.dts) mutes the speaker while
++# headphones are in. On SPK the headphone output stays off: plugging in still
++# muted the speaker, and the headphones got nothing (seen on hardware). Only
++# written when it differs, so the many calls (boot, wake, every volume change)
++# do not re-power the outputs and pop.
++RG351P_PLAYBACK_PATH="SPK_HP"
 +apply_playback_path() {
-+    :
++    _path="$(amixer sget 'Playback Path' 2>/dev/null | sed -n "s/^ *Item0: '\(.*\)'$/\1/p")"
++    [ "$_path" = "$RG351P_PLAYBACK_PATH" ] && return 0
++    amixer -q sset 'Playback Path' "$RG351P_PLAYBACK_PATH" 2>/dev/null
++    log_message "$PLATFORM: Playback Path ${_path:-unknown} -> $RG351P_PLAYBACK_PATH"
 +}
 +
 +set_event_arg_for_idlemon() {

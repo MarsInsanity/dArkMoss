@@ -5,9 +5,19 @@
 
 . "/mnt/SDCARD/spruce/scripts/platform/darkmoss/dArkMossCommon.sh"
 
-# The rk817 codec switches to the jack itself, as on the V10.
+# The rk817's "Playback Path" has to be SPK_HP, as ArkOS sets it on its RK3326
+# units (dArkMoss's spktoggle.sh): both outputs powered, and the kernel's jack
+# detection (hp-det-gpio in rk3326-rg351p-linux.dts) mutes the speaker while
+# headphones are in. On SPK the headphone output stays off: plugging in still
+# muted the speaker, and the headphones got nothing (seen on hardware). Only
+# written when it differs, so the many calls (boot, wake, every volume change)
+# do not re-power the outputs and pop.
+RG351P_PLAYBACK_PATH="SPK_HP"
 apply_playback_path() {
-    :
+    _path="$(amixer sget 'Playback Path' 2>/dev/null | sed -n "s/^ *Item0: '\(.*\)'$/\1/p")"
+    [ "$_path" = "$RG351P_PLAYBACK_PATH" ] && return 0
+    amixer -q sset 'Playback Path' "$RG351P_PLAYBACK_PATH" 2>/dev/null
+    log_message "$PLATFORM: Playback Path ${_path:-unknown} -> $RG351P_PLAYBACK_PATH"
 }
 
 set_event_arg_for_idlemon() {
