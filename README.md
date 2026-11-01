@@ -134,3 +134,8 @@ driver and button codes. Nothing on the spruce card changes.
   `extras/spruce/App/USBMode` is a spruce app that switches it: copy the
   folder to `App/` on the spruce card, and its menu entry turns adbd at boot
   on (wired adb) or off (WiFi dongle).
+- Headphones: `hpjackd` sets the rk817 Playback Path to HP while the jack
+  switch is on and SPK while it is off. The dts reads the detect pin active
+  low (arkos4clone, dArkOSRE's 20250423 dtb). On a unit tested on 2026-11-01
+  it reads the other way, as dArkOSRE's 20250422 dtb has it, and
+  `/boot/headphones-invert` made it correct; `R36S-PANEL.txt` tells users.
