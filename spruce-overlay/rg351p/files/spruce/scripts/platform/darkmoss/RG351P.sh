@@ -76,16 +76,29 @@ set_dram_governor() {
     echo "$_top" > "$DRAM_DEVFREQ_DIR/min_freq" 2>/dev/null
 }
 
-# The motor hangs off pwm0 (GPIO0_B7). It is not a force-feedback device on
-# the pad, so darkmoss_vibrate's rumble tool has nothing to talk to. Drive the
-# PWM directly and always leave it disabled, so it can never stay on.
+# The motor hangs off pwm0 (GPIO0_B7) and runs while the pin is high (the
+# V10's dtb, holding that pin high, left it running nonstop). It is not a
+# force-feedback device on the pad, so darkmoss_vibrate's rumble tool has
+# nothing to talk to: drive the PWM through sysfs.
+#
+# Polarity has to be set to "normal" first. The 4.4 Rockchip driver reports
+# the reset register's polarity, "inversed", for a PWM nothing has claimed, and
+# inversed, duty 0 is high all the time and even a disabled PWM idles high:
+# that left the motor running nonstop after the first buzz (seen on hardware,
+# from the Game Switcher's hold vibration). Polarity can only be changed while
+# the PWM is disabled. Normal, both "duty 0" and "disabled" are low.
 RG351P_PWM_PERIOD=1000000
 _rg351p_pwm() {
     _chip="${RG351P_PWM_CHIP:-/sys/class/pwm/pwmchip0}"
     [ -d "$_chip" ] || return 1
-    [ -d "$_chip/pwm0" ] || echo 0 > "$_chip/export" 2>/dev/null
+    [ -d "$_chip/pwm0" ] || echo 0 2>/dev/null > "$_chip/export"
     [ -d "$_chip/pwm0" ] || return 1
     echo "$_chip/pwm0"
+}
+
+_rg351p_motor_off() {
+    echo 0 2>/dev/null > "$1/duty_cycle"
+    echo 0 2>/dev/null > "$1/enable"
 }
 
 vibrate() {
@@ -108,13 +121,20 @@ vibrate() {
     [ -n "$duration" ] || duration="$tier_duration"
 
     _pwm="$(_rg351p_pwm)" || return 0
+    echo 0 2>/dev/null > "$_pwm/enable"
+    echo normal 2>/dev/null > "$_pwm/polarity"
+    if [ "$(cat "$_pwm/polarity" 2>/dev/null)" != "normal" ]; then
+        # Never drive a motor whose off level is unknown.
+        log_message "$PLATFORM: pwm0 polarity is not normal, no vibration"
+        _rg351p_motor_off "$_pwm"
+        return 0
+    fi
     # period before duty_cycle: the kernel refuses a duty longer than the period.
-    echo "$RG351P_PWM_PERIOD" > "$_pwm/period" 2>/dev/null
-    echo "$duty" > "$_pwm/duty_cycle" 2>/dev/null
-    echo 1 > "$_pwm/enable" 2>/dev/null
+    echo "$RG351P_PWM_PERIOD" 2>/dev/null > "$_pwm/period"
+    echo "$duty" 2>/dev/null > "$_pwm/duty_cycle"
+    echo 1 2>/dev/null > "$_pwm/enable"
     sleep "$(awk -v ms="$duration" 'BEGIN { printf "%.3f", ms / 1000 }')"
-    echo 0 > "$_pwm/duty_cycle" 2>/dev/null
-    echo 0 > "$_pwm/enable" 2>/dev/null
+    _rg351p_motor_off "$_pwm"
 }
 
 # RetroArch's udev numbering of this pad (RG351P.cfg): Select 22, B 16, X 17,

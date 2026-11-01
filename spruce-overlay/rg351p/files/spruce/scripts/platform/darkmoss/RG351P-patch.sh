@@ -84,6 +84,18 @@ patch App/FileManagement/launch.sh \
     '|G350|V10|' \
     's/|G350|V10|/|G350|V10|RG351P|/'
 
+# take_screenshot: an optional ffmpeg filter from the platform cfg, for panels
+# that scan out rotated (kmsgrab reads the plane as the panel scans it). The
+# comment names the RG351P, the first user, which is also what makes this edit
+# idempotent here.
+patch spruce/scripts/platform/darkmoss/dArkMossCommon.sh \
+    '^        -vf "hwdownload,format=bgr0,format=rgba" \\$' \
+    '/^take_screenshot() {$/i\
+# SCREENSHOT_VF (platform cfg, optional): an ffmpeg filter applied to the grab.\
+# kmsgrab reads the plane as the panel scans it, so a panel that is mounted\
+# rotated (the RG351P: "transpose=clock") needs its picture turned back.
+s/^        -vf "hwdownload,format=bgr0,format=rgba" \\$/        -vf "hwdownload,format=bgr0${SCREENSHOT_VF:+,$SCREENSHOT_VF},format=rgba" \\/'
+
 # Cards set up with the first overlays seeded RetroArch's live config with
 # ArkOS's 0-11 button numbering, which RetroArch 1.22 does not use for this pad
 # (only the d-pad and stick worked). spruce re-seeds the live config from
@@ -96,4 +108,6 @@ if [ -z "$RG351P_SPRUCE_ROOT" ] && grep -q '^input_player1_a_btn = "0"$' "$RA_LI
 fi
 
 sync
-touch "$STAMP" 2>/dev/null
+# No stamp in a checkout (make.sh): it is per boot, for cards.
+[ -n "$RG351P_SPRUCE_ROOT" ] || touch "$STAMP" 2>/dev/null
+exit 0
