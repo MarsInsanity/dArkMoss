@@ -129,3 +129,8 @@ driver and button codes. Nothing on the spruce card changes.
   `dArkMoss_G350_<version>.dmupd` at the root of the spruce card, Firmware
   Update installs it. The applier checks `DARKMOSS_UNIT`, so it refuses a
   payload built for another unit.
+- USB: the clone's only USB data port is the OTG controller, so the image
+  leaves wired adbd off and the port stays a host for a WiFi dongle.
+  `extras/spruce/App/USBMode` is a spruce app that switches it: copy the
+  folder to `App/` on the spruce card, and its menu entry turns adbd at boot
+  on (wired adb) or off (WiFi dongle).
