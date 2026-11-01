@@ -117,22 +117,23 @@ vibrate() {
     echo 0 > "$_pwm/enable" 2>/dev/null
 }
 
-# udev numbering of this pad: select 7, B 1, R2 11.
+# RetroArch's udev numbering of this pad (RG351P.cfg): Select 22, B 16, X 17,
+# Y 18, L1 19, R1 20, R2 26.
 set_default_ra_hotkeys() {
     RA_FILE="/mnt/SDCARD/Saves/ra-configs/retroarch-$PLATFORM.cfg"
 
     log_message "Resetting RetroArch hotkeys to Spruce defaults."
 
     update_ra_config_file_with_new_setting "$RA_FILE" \
-        "input_enable_hotkey_btn = \"7\"" \
-        "input_exit_emulator_btn = \"1\"" \
-        "input_fps_toggle_btn = \"2\"" \
-        "input_load_state_btn = \"4\"" \
-        "input_save_state_btn = \"5\"" \
+        "input_enable_hotkey_btn = \"22\"" \
+        "input_exit_emulator_btn = \"16\"" \
+        "input_fps_toggle_btn = \"17\"" \
+        "input_load_state_btn = \"19\"" \
+        "input_save_state_btn = \"20\"" \
         "input_menu_toggle = \"f1\"" \
-        "input_menu_toggle_btn = \"3\"" \
+        "input_menu_toggle_btn = \"18\"" \
         "input_quit_gamepad_combo = \"0\"" \
-        "input_toggle_fast_forward_btn = \"11\"" \
+        "input_toggle_fast_forward_btn = \"26\"" \
         "input_screenshot_btn = \"nul\"" \
         "input_shader_toggle_btn = \"nul\"" \
         "input_state_slot_decrease_btn = \"nul\"" \

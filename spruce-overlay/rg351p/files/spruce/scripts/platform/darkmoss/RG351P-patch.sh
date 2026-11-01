@@ -84,5 +84,16 @@ patch App/FileManagement/launch.sh \
     '|G350|V10|' \
     's/|G350|V10|/|G350|V10|RG351P|/'
 
+# Cards set up with the first overlays seeded RetroArch's live config with
+# ArkOS's 0-11 button numbering, which RetroArch 1.22 does not use for this pad
+# (only the d-pad and stick worked). spruce re-seeds the live config from
+# RetroArch/platform/retroarch-RG351P.cfg.bak when it is missing, so move an
+# old-numbered one aside, once. Cards only: never in a spruceOS checkout.
+RA_LIVE="$SD/Saves/ra-configs/retroarch-RG351P.cfg"
+if [ -z "$RG351P_SPRUCE_ROOT" ] && grep -q '^input_player1_a_btn = "0"$' "$RA_LIVE" 2>/dev/null; then
+    mv -f "$RA_LIVE" "$RA_LIVE.old-numbering"
+    log "moved the old-numbered $RA_LIVE aside; spruce re-seeds it from the .bak"
+fi
+
 sync
 touch "$STAMP" 2>/dev/null

@@ -1,6 +1,6 @@
-From eae07bf59a018f571c2ae34f5d6d725873b8b2e7 Mon Sep 17 00:00:00 2001
+From 80c8cbe7872dfbb62be963520a484931c3e94046 Mon Sep 17 00:00:00 2001
 From: MarsInsanity <mazemoyux@gmail.com>
-Date: Sat, 31 Oct 2026 19:29:56 +0000
+Date: Sun, 1 Nov 2026 05:20:13 +0000
 Subject: [PATCH] Add the Anbernic RG351P (dArkMoss rg351p unit)
 
 The RG351P runs dArkMoss's rg351p unit: the rg351 kernel with
@@ -13,9 +13,14 @@ V10.cfg. What differs:
   (1209:3100), with the d-pad on a hat (ABS_HAT0X/Y). It has no by-path
   link, so it is found by name. Button codes (A 304, B 305, X 306, Y 307,
   L1 308, R1 309, Start 310, Select 311, L3 312, R3 313, L2 314, R2 315) are
-  ArkOS's RG351P es_input.cfg; RetroArch numbering is ArkOS's autoconfig for
-  this pad.
+  ArkOS's RG351P es_input.cfg. RetroArch 1.22's udev joypad driver numbers
+  KEY_UP..KEY_DOWN and the pad's nine mouse buttons first, so in RetroArch
+  they are 15-26 (A 15 ... R2 26); SDL numbers 304 first, so DraStic keeps
+  0-11. Checked on hardware: with 0-11 only the hat d-pad and stick worked.
 - No menu button: SELECT+START (the V10's chord) or the stick click is MENU.
+  As on the RGB30, B_L3 is DOESNT_EXIST: the pad is a HID keyboard the
+  kernel autorepeats, and a held click's repeats matched menubutton_watchdog's
+  "key $B_L3" cancel and cancelled the press (seen on hardware).
   PyUI ignores the stick axes in the menus (their range is not the V10's
   +-1800 the darkmoss provider is sized for).
 - Volume is a hardware wheel after the codec: the codec stays at full and
@@ -45,14 +50,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  App/PyUI/main-ui/devices/device_factory.py    |    3 +
  Emu/NDS/config/drastic-RG351P.cfg             |  160 +
  Emu/NDS/config/drastic-RG351P.cfg.bak         |  160 +
- .../OpenSimHardware OSH PB Controller.cfg     |   52 +
+ .../OpenSimHardware OSH PB Controller.cfg     |   56 +
  RetroArch/platform/retroarch-RG351P.cfg.bak   | 3378 +++++++++++++++++
  spruce/flags/first_boot_RG351P.lock           |    0
  spruce/scripts/emu/lib/drastic_functions.sh   |    1 +
  spruce/scripts/helperFunctions.sh             |    1 +
- spruce/scripts/platform/darkmoss/RG351P.cfg   |  185 +
- spruce/scripts/platform/darkmoss/RG351P.sh    |  141 +
- 18 files changed, 4230 insertions(+), 6 deletions(-)
+ spruce/scripts/platform/darkmoss/RG351P.cfg   |  192 +
+ spruce/scripts/platform/darkmoss/RG351P.sh    |  142 +
+ 18 files changed, 4242 insertions(+), 6 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/rg351p.py
  create mode 100644 Emu/NDS/config/drastic-RG351P.cfg
@@ -644,32 +649,36 @@ index 00000000..2ac547de
 +controls_b[CONTROL_INDEX_HOT_TOGGLE_SHOW_FRAME_COUNTER] = 65535
 diff --git a/RetroArch/.retroarch/autoconfig/udev/OpenSimHardware OSH PB Controller.cfg b/RetroArch/.retroarch/autoconfig/udev/OpenSimHardware OSH PB Controller.cfg
 new file mode 100644
-index 00000000..f3898a19
+index 00000000..1954a09f
 --- /dev/null
 +++ b/RetroArch/.retroarch/autoconfig/udev/OpenSimHardware OSH PB Controller.cfg	
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,56 @@
 +# Anbernic RG351P internal pad: a USB HID controller (1209:3100), d-pad on a
-+# hat. Numbering from ArkOS's RetroArch autoconfig for this pad (evdev 304-315
-+# are buttons 0-11). A is the right face button.
++# hat. A is the right face button. Numbering is RetroArch's udev joypad driver
++# (input/drivers_joypad/udev_joypad.c), which numbers KEY_UP..KEY_DOWN first,
++# then every key from BTN_MISC up. This pad also declares those six arrow keys
++# and nine mouse buttons (272-280), so its buttons 304-315 are 15-26, not the
++# 0-11 of ArkOS's older RetroArch (checked on hardware: with 0-11 only the hat
++# d-pad and the stick worked).
 +input_driver = "udev"
 +input_device = "OpenSimHardware OSH PB Controller"
 +input_vendor_id = "4617"
 +input_product_id = "12544"
 +
-+input_a_btn = "0"
-+input_b_btn = "1"
-+input_x_btn = "2"
-+input_y_btn = "3"
++input_a_btn = "15"
++input_b_btn = "16"
++input_x_btn = "17"
++input_y_btn = "18"
 +
-+input_l_btn = "4"
-+input_r_btn = "5"
-+input_l2_btn = "10"
-+input_r2_btn = "11"
-+input_l3_btn = "8"
-+input_r3_btn = "9"
++input_l_btn = "19"
++input_r_btn = "20"
++input_l2_btn = "25"
++input_r2_btn = "26"
++input_l3_btn = "23"
++input_r3_btn = "24"
 +
-+input_start_btn = "6"
-+input_select_btn = "7"
++input_start_btn = "21"
++input_select_btn = "22"
 +
 +input_up_btn = "h0up"
 +input_down_btn = "h0down"
@@ -702,7 +711,7 @@ index 00000000..f3898a19
 +input_l_y_minus_axis_label = "Left Analog Up"
 diff --git a/RetroArch/platform/retroarch-RG351P.cfg.bak b/RetroArch/platform/retroarch-RG351P.cfg.bak
 new file mode 100644
-index 00000000..9e1d84d4
+index 00000000..03f5465d
 --- /dev/null
 +++ b/RetroArch/platform/retroarch-RG351P.cfg.bak
 @@ -0,0 +1,3378 @@
@@ -954,15 +963,15 @@ index 00000000..9e1d84d4
 +input_driver = "udev"
 +input_enable_hotkey = "nul"
 +input_enable_hotkey_axis = "nul"
-+input_enable_hotkey_btn = "7"
++input_enable_hotkey_btn = "22"
 +input_enable_hotkey_mbtn = "nul"
 +input_exit_emulator = "escape"
 +input_exit_emulator_axis = "nul"
-+input_exit_emulator_btn = "1"
++input_exit_emulator_btn = "16"
 +input_exit_emulator_mbtn = "nul"
 +input_fps_toggle = "f3"
 +input_fps_toggle_axis = "nul"
-+input_fps_toggle_btn = "2"
++input_fps_toggle_btn = "17"
 +input_fps_toggle_mbtn = "nul"
 +input_frame_advance = "k"
 +input_frame_advance_axis = "nul"
@@ -995,12 +1004,12 @@ index 00000000..9e1d84d4
 +input_keyboard_layout = ""
 +input_load_state = "f4"
 +input_load_state_axis = "nul"
-+input_load_state_btn = "4"
++input_load_state_btn = "19"
 +input_load_state_mbtn = "nul"
 +input_max_users = "8"
 +input_menu_toggle = "f1"
 +input_menu_toggle_axis = "nul"
-+input_menu_toggle_btn = "3"
++input_menu_toggle_btn = "18"
 +input_menu_toggle_gamepad_combo = "0"
 +input_menu_toggle_mbtn = "nul"
 +input_netplay_fade_chat_toggle = "nul"
@@ -2133,12 +2142,12 @@ index 00000000..9e1d84d4
 +input_player16_y_mbtn = "nul"
 +input_player1_a = "x"
 +input_player1_a_axis = "nul"
-+input_player1_a_btn = "0"
++input_player1_a_btn = "15"
 +input_player1_a_mbtn = "nul"
 +input_player1_analog_dpad_mode = "0"
 +input_player1_b = "z"
 +input_player1_b_axis = "nul"
-+input_player1_b_btn = "1"
++input_player1_b_btn = "16"
 +input_player1_b_mbtn = "nul"
 +input_player1_device_reservation_type = "0"
 +input_player1_down = "down"
@@ -2193,14 +2202,14 @@ index 00000000..9e1d84d4
 +input_player1_l = "q"
 +input_player1_l2 = "nul"
 +input_player1_l2_axis = "nul"
-+input_player1_l2_btn = "10"
++input_player1_l2_btn = "25"
 +input_player1_l2_mbtn = "nul"
 +input_player1_l3 = "nul"
 +input_player1_l3_axis = "nul"
-+input_player1_l3_btn = "8"
++input_player1_l3_btn = "23"
 +input_player1_l3_mbtn = "nul"
 +input_player1_l_axis = "nul"
-+input_player1_l_btn = "4"
++input_player1_l_btn = "19"
 +input_player1_l_mbtn = "nul"
 +input_player1_l_x_minus = "nul"
 +input_player1_l_x_minus_axis = "-0"
@@ -2226,14 +2235,14 @@ index 00000000..9e1d84d4
 +input_player1_r = "w"
 +input_player1_r2 = "nul"
 +input_player1_r2_axis = "nul"
-+input_player1_r2_btn = "11"
++input_player1_r2_btn = "26"
 +input_player1_r2_mbtn = "nul"
 +input_player1_r3 = "nul"
 +input_player1_r3_axis = "nul"
-+input_player1_r3_btn = "9"
++input_player1_r3_btn = "24"
 +input_player1_r3_mbtn = "nul"
 +input_player1_r_axis = "nul"
-+input_player1_r_btn = "5"
++input_player1_r_btn = "20"
 +input_player1_r_mbtn = "nul"
 +input_player1_r_x_minus = "nul"
 +input_player1_r_x_minus_axis = "nul"
@@ -2258,11 +2267,11 @@ index 00000000..9e1d84d4
 +input_player1_right_mbtn = "nul"
 +input_player1_select = "rshift"
 +input_player1_select_axis = "nul"
-+input_player1_select_btn = "7"
++input_player1_select_btn = "22"
 +input_player1_select_mbtn = "nul"
 +input_player1_start = "enter"
 +input_player1_start_axis = "nul"
-+input_player1_start_btn = "6"
++input_player1_start_btn = "21"
 +input_player1_start_mbtn = "nul"
 +input_player1_turbo = "nul"
 +input_player1_turbo_axis = "nul"
@@ -2274,11 +2283,11 @@ index 00000000..9e1d84d4
 +input_player1_up_mbtn = "nul"
 +input_player1_x = "s"
 +input_player1_x_axis = "nul"
-+input_player1_x_btn = "2"
++input_player1_x_btn = "17"
 +input_player1_x_mbtn = "nul"
 +input_player1_y = "a"
 +input_player1_y_axis = "nul"
-+input_player1_y_btn = "3"
++input_player1_y_btn = "18"
 +input_player1_y_mbtn = "nul"
 +input_player2_a = "nul"
 +input_player2_a_axis = "nul"
@@ -3520,7 +3529,7 @@ index 00000000..9e1d84d4
 +input_save_replay_checkpoint_mbtn = "nul"
 +input_save_state = "f2"
 +input_save_state_axis = "nul"
-+input_save_state_btn = "5"
++input_save_state_btn = "20"
 +input_save_state_mbtn = "nul"
 +input_screenshot = "f8"
 +input_screenshot_axis = "nul"
@@ -3559,7 +3568,7 @@ index 00000000..9e1d84d4
 +input_streaming_toggle_mbtn = "nul"
 +input_toggle_fast_forward = "space"
 +input_toggle_fast_forward_axis = "nul"
-+input_toggle_fast_forward_btn = "11"
++input_toggle_fast_forward_btn = "26"
 +input_toggle_fast_forward_mbtn = "nul"
 +input_toggle_fullscreen = "f"
 +input_toggle_fullscreen_axis = "nul"
@@ -3567,7 +3576,7 @@ index 00000000..9e1d84d4
 +input_toggle_fullscreen_mbtn = "nul"
 +input_toggle_slowmotion = "nul"
 +input_toggle_slowmotion_axis = "nul"
-+input_toggle_slowmotion_btn = "10"
++input_toggle_slowmotion_btn = "25"
 +input_toggle_slowmotion_mbtn = "nul"
 +input_toggle_statistics = "nul"
 +input_toggle_statistics_axis = "nul"
@@ -4113,10 +4122,10 @@ index a804029f..c14be87e 100644
          XU20)             echo "MAGICX_XU20";   echo "MAGICX_A133P" ;;
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.cfg b/spruce/scripts/platform/darkmoss/RG351P.cfg
 new file mode 100644
-index 00000000..69b319c3
+index 00000000..4f52082a
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.cfg
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,192 @@
 +#!/bin/sh
 +# Anbernic RG351P (RK3326, 320x480 portrait panel shown as 480x320) on
 +# dArkMoss's rg351p unit: the rg351 kernel with rk3326-rg351p-linux.dtb. Same
@@ -4251,12 +4260,16 @@ index 00000000..69b319c3
 +export B_VOLUP="1 115"
 +export B_VOLDOWN="1 114"
 +
-+export B_L3="1 312"      # stick click
-+export B_R3="1 313"      # reported by the controller; the RG351P has no second stick
-+
-+# No menu button: the stick click is MENU here, and SELECT+START in the menus
-+# (rg351p.py).
++# No menu button: the stick click (312) is MENU, and SELECT+START in the menus
++# (rg351p.py). As on the RGB30 with its menu on a stick click, L3 is then
++# DOESNT_EXIST, and it has to be here: the pad is a HID keyboard and the kernel
++# autorepeats it, so holding the click sends "1 312 2", which matched
++# menubutton_watchdog.sh's "key $B_L3" cancel and cancelled its own press
++# (seen on hardware: every press logged, no tap or hold action). R3 is
++# reported by the controller, but the RG351P has no second stick.
 +export B_MENU="1 312"
++export B_L3="DOESNT_EXIST"
++export B_R3="DOESNT_EXIST"
 +export B_HOME="DOESNT_EXIST"
 +
 +# gamecontrollerdb's entry for this pad, with A/B and X/Y label-named like the
@@ -4296,18 +4309,21 @@ index 00000000..69b319c3
 +#####   RetroArch Keys   #####
 +  #########################
 +
-+# udev numbering of this pad (ArkOS's RetroArch autoconfig for it): A 0, B 1,
-+# X 2, Y 3, L1 4, R1 5, Start 6, Select 7, L3 8, R3 9, L2 10, R2 11.
++# RetroArch's udev numbering of this pad: A 15, B 16, X 17, Y 18, L1 19,
++# R1 20, Start 21, Select 22, L3 23, R3 24, L2 25, R2 26. Not 0-11: RetroArch
++# numbers KEY_UP..KEY_DOWN and the pad's mouse buttons first (see its
++# autoconfig, "OpenSimHardware OSH PB Controller.cfg"). SDL (DraStic, PPSSPP)
++# numbers 304 first, so 0-11 is right there.
 +RA_HOTKEY_LINE="input_enable_hotkey_btn"
-+RA_SELECT_VAL="7"
-+RA_START_VAL="6"
++RA_SELECT_VAL="22"
++RA_START_VAL="21"
 +RA_HOME_VAL="nul"
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.sh b/spruce/scripts/platform/darkmoss/RG351P.sh
 new file mode 100644
-index 00000000..09dbc42e
+index 00000000..47473060
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.sh
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,142 @@
 +#!/bin/sh
 +# Anbernic RG351P device functions. Everything the base OS decides is in
 +# dArkMossCommon.sh; this file holds what is particular to this unit. Board,
@@ -4427,22 +4443,23 @@ index 00000000..09dbc42e
 +    echo 0 > "$_pwm/enable" 2>/dev/null
 +}
 +
-+# udev numbering of this pad: select 7, B 1, R2 11.
++# RetroArch's udev numbering of this pad (RG351P.cfg): Select 22, B 16, X 17,
++# Y 18, L1 19, R1 20, R2 26.
 +set_default_ra_hotkeys() {
 +    RA_FILE="/mnt/SDCARD/Saves/ra-configs/retroarch-$PLATFORM.cfg"
 +
 +    log_message "Resetting RetroArch hotkeys to Spruce defaults."
 +
 +    update_ra_config_file_with_new_setting "$RA_FILE" \
-+        "input_enable_hotkey_btn = \"7\"" \
-+        "input_exit_emulator_btn = \"1\"" \
-+        "input_fps_toggle_btn = \"2\"" \
-+        "input_load_state_btn = \"4\"" \
-+        "input_save_state_btn = \"5\"" \
++        "input_enable_hotkey_btn = \"22\"" \
++        "input_exit_emulator_btn = \"16\"" \
++        "input_fps_toggle_btn = \"17\"" \
++        "input_load_state_btn = \"19\"" \
++        "input_save_state_btn = \"20\"" \
 +        "input_menu_toggle = \"f1\"" \
-+        "input_menu_toggle_btn = \"3\"" \
++        "input_menu_toggle_btn = \"18\"" \
 +        "input_quit_gamepad_combo = \"0\"" \
-+        "input_toggle_fast_forward_btn = \"11\"" \
++        "input_toggle_fast_forward_btn = \"26\"" \
 +        "input_screenshot_btn = \"nul\"" \
 +        "input_shader_toggle_btn = \"nul\"" \
 +        "input_state_slot_decrease_btn = \"nul\"" \
