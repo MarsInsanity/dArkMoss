@@ -133,7 +133,9 @@ driver and button codes. Nothing on the spruce card changes.
   leaves wired adbd off and the port stays a host for a WiFi dongle.
   `extras/spruce/App/USBMode` is a spruce app that switches it: copy the
   folder to `App/` on the spruce card, and its menu entry turns adbd at boot
-  on (wired adb) or off (WiFi dongle).
+  on (wired adb) or off (WiFi dongle). The boot line carries
+  `usbcore.autosuspend=-1`: with autosuspend on, a dongle plugged in after
+  boot is not detected.
 - Headphones: `hpjackd` sets the rk817 Playback Path to HP while the jack
   switch is on and SPK while it is off. The dts reads the detect pin active
   high, as on the unit this branch is for (dArkOSRE's 20250422 dtb; its

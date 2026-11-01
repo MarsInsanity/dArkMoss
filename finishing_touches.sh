@@ -13,6 +13,13 @@ if [ "$UNIT" == "g350" ] || [ "$UNIT" == "a10mini" ] || [ "$UNIT" == "r36sclone"
 else
   PANEL_ARGS=""
 fi
+# R36S clone: keep USB devices out of runtime autosuspend. With it on, the OTG port's hub
+# suspends while idle and a WiFi dongle plugged in later is never enumerated.
+if [ "$UNIT" == "r36sclone" ]; then
+  USB_ARGS=" usbcore.autosuspend=-1"
+else
+  USB_ARGS=""
+fi
 # A10 Mini: one image for the A10 Mini and the V4. U-Boot switches to panel@1 when the
 # panel's ID is the V4's (patches/a10mini/uboot); boot that panel's dtb, turned 180 degrees.
 BOOT_ROTATION="${SCREEN_ROTATION}"
@@ -56,7 +63,7 @@ fi
 cat <<EOF | sudo tee ${mountpoint}/boot.ini
 odroidgoa-uboot-config
 
-${PANEL_LINE}setenv bootargs "root=/dev/mmcblk0p2 rootwait rw fsck.repair=yes net.ifnames=0 fbcon=rotate:${BOOT_ROTATION} console=/dev/ttyFIQ0 quiet splash consoleblank=0 vt.global_cursor_default=0${PANEL_ARGS}${ROOTFS_ARGS}"
+${PANEL_LINE}setenv bootargs "root=/dev/mmcblk0p2 rootwait rw fsck.repair=yes net.ifnames=0 fbcon=rotate:${BOOT_ROTATION} console=/dev/ttyFIQ0 quiet splash consoleblank=0 vt.global_cursor_default=0${PANEL_ARGS}${USB_ARGS}${ROOTFS_ARGS}"
 ${DEBUG_LINE}
 
 # Booting
