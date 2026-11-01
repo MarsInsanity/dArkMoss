@@ -11,7 +11,7 @@ The RG351P has one SD slot, so dArkMoss and spruce share the same card. A card b
    - Extract the newest spruce `.7z` into it (a [release](https://github.com/spruceUI/spruceOS/releases) or a [nightly](https://github.com/spruceUI/spruceOSNightlies/releases) with RG351P support). If this release carries `spruce-RG351P-overlay.zip`, see the note below.
 6. **Turn the RG351P on.** The first start unpacks spruce's apps and themes, which takes a few minutes once.
 
-**Controls:** there is no menu button. In the menus, **SELECT + START** opens the menu. In games, a tap on the stick opens the emulator menu and holding it opens the Game Switcher; SELECT is the RetroArch hotkey: SELECT+B exit, SELECT+R1 save, SELECT+L1 load, SELECT+Y RetroArch menu.
+**Controls:** there is no menu button, so a stick click is the menu: the left one (L3) by default, or the right one under *Settings → Button Settings → Menu button*. The other click works as L3/R3. In the menus **SELECT + START** opens the menu too. In games, a tap on the menu click opens the emulator menu and holding it opens the Game Switcher; SELECT is the RetroArch hotkey: SELECT+B exit, SELECT+R1 save, SELECT+L1 load, SELECT+Y RetroArch menu.
 
 **Volume** is the hardware wheel only; spruce keeps its own volume at full.
 
