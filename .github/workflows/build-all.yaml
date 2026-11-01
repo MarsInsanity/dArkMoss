@@ -76,47 +76,45 @@ jobs:
           pattern: dArkMoss-*
           merge-multiple: true
 
-      # The V10 shares one card with spruce: add its install steps to the notes.
-      # While spruce's V10 files are not in a spruce release, a fork can carry
-      # them on a "v10" branch of <owner>/spruceOS; when that branch exists they
-      # are attached as spruce-V10-overlay.zip. Without it this step is a no-op.
+      # The V10 and the RG351P share one card with spruce: add their install steps
+      # to the notes. While a unit's spruce files are not in a spruce release, a
+      # fork can carry them on a branch named after the unit ("v10", "rg351p") of
+      # <owner>/spruceOS; when that branch exists its files are attached as
+      # spruce-<UNIT>-overlay.zip. Without it a unit gets its notes only.
       - name: Check out (release notes)
         if: ${{ contains(needs.plan.outputs.units, '"v10"') || contains(needs.plan.outputs.units, '"rg351p"') }}
         uses: actions/checkout@v4
         with:
           path: src
 
-      - name: V10 notes and spruce overlay
-        if: ${{ contains(needs.plan.outputs.units, '"v10"') }}
+      - name: Single-card notes and spruce overlays
+        if: ${{ contains(needs.plan.outputs.units, '"v10"') || contains(needs.plan.outputs.units, '"rg351p"') }}
         env:
           OVERLAY_REPO: ${{ github.repository_owner }}/spruceOS
+          UNITS: ${{ needs.plan.outputs.units }}
         run: |
-          cp src/.github/v10-release-notes.md v10-notes.md
-          if ! git ls-remote --exit-code --heads "https://github.com/${OVERLAY_REPO}" v10 >/dev/null 2>&1; then
-            echo "No v10 branch on ${OVERLAY_REPO}: no overlay attached"
-            exit 0
-          fi
-          GIT_LFS_SKIP_SMUDGE=1 git clone -q --filter=blob:none --no-checkout -b v10 "https://github.com/${OVERLAY_REPO}" spruce-src
-          cd spruce-src
-          git fetch -q origin Development
-          base="$(git merge-base FETCH_HEAD HEAD)"
-          git diff --name-only --diff-filter=ACMR "$base" HEAD > ../overlay-files.txt
-          [ -s ../overlay-files.txt ] || { echo "::error::no V10 files on ${OVERLAY_REPO} v10"; exit 1; }
-          tr '\n' '\0' < ../overlay-files.txt | xargs -0 git archive --format=zip -o ../spruce-V10-overlay.zip HEAD --
-          cd ..
-          rm -rf spruce-src
-          unzip -l spruce-V10-overlay.zip | tail -1
-          cat src/.github/v10-overlay-note.md >> v10-notes.md
-
-      # The RG351P shares one card with spruce too. Its spruce files live in this
-      # repo (spruce-overlay/rg351p): the overlay is built from the same commit as
-      # the image, so the two always match.
-      - name: RG351P notes and spruce overlay
-        if: ${{ contains(needs.plan.outputs.units, '"rg351p"') }}
-        run: |
-          cp src/.github/rg351p-release-notes.md rg351p-notes.md
-          sh src/spruce-overlay/rg351p/make.sh overlay "$PWD/spruce-RG351P-overlay.zip"
-          unzip -l spruce-RG351P-overlay.zip | tail -1
+          for unit in v10 rg351p; do
+            jq -e --arg u "$unit" 'index($u) != null' <<<"$UNITS" >/dev/null || continue
+            UNIT_UC="${unit^^}"
+            cp "src/.github/${unit}-release-notes.md" "${unit}-notes.md"
+            if ! git ls-remote --exit-code --heads "https://github.com/${OVERLAY_REPO}" "$unit" >/dev/null 2>&1; then
+              echo "No ${unit} branch on ${OVERLAY_REPO}: no ${UNIT_UC} overlay attached"
+              continue
+            fi
+            rm -rf spruce-src
+            GIT_LFS_SKIP_SMUDGE=1 git clone -q --filter=blob:none --no-checkout -b "$unit" "https://github.com/${OVERLAY_REPO}" spruce-src
+            (
+              cd spruce-src
+              git fetch -q origin Development
+              base="$(git merge-base FETCH_HEAD HEAD)"
+              git diff --name-only --diff-filter=ACMR "$base" HEAD > "../overlay-files-${unit}.txt"
+              [ -s "../overlay-files-${unit}.txt" ] || { echo "::error::no ${UNIT_UC} files on ${OVERLAY_REPO} ${unit}"; exit 1; }
+              tr '\n' '\0' < "../overlay-files-${unit}.txt" | xargs -0 git archive --format=zip -o "../spruce-${UNIT_UC}-overlay.zip" HEAD --
+            )
+            rm -rf spruce-src
+            unzip -l "spruce-${UNIT_UC}-overlay.zip" | tail -1
+            cat "src/.github/${unit}-overlay-note.md" >> "${unit}-notes.md"
+          done
 
       - name: Checksums
         run: |

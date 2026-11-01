@@ -1,0 +1,2 @@
+
+**spruce-RG351P-overlay.zip:** spruce's RG351P files, for spruce versions that do not include the RG351P yet. It is cut from spruce's Development branch, so pair it with a spruce nightly from the same week or later: on an older spruce its shared files would replace newer ones. After step 5's spruce `.7z`, extract this zip into the same **SPRUCEOS** drive and choose *replace all*. On a Mac, Finder's *Replace* deletes whole folders: use Terminal, `ditto -x -k --norsrc spruce-RG351P-overlay.zip /Volumes/SPRUCEOS`, then `dot_clean -m /Volumes/SPRUCEOS`.
