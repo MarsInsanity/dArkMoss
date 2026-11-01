@@ -1,6 +1,6 @@
-From e16b70f8d11c202615afbc0e7d83ee4a904f2c54 Mon Sep 17 00:00:00 2001
+From e9a81c8857677c69c094985914e560b468176e60 Mon Sep 17 00:00:00 2001
 From: MarsInsanity <mazemoyux@gmail.com>
-Date: Sun, 1 Nov 2026 05:36:39 +0000
+Date: Sun, 1 Nov 2026 05:37:54 +0000
 Subject: [PATCH] Add the Anbernic RG351P (dArkMoss rg351p unit)
 
 The RG351P runs dArkMoss's rg351p unit: the rg351 kernel with
@@ -23,7 +23,9 @@ V10.cfg. What differs:
   "key $B_L3" cancel and cancelled the press (seen on hardware).
   PyUI ignores the stick axes in the menus (their range is not the V10's
   +-1800 the darkmoss provider is sized for).
-- Volume is a hardware wheel after the codec: the codec stays at full and
+- Volume is a hardware wheel after the codec: everything in front of it stays
+  at full, the codec's Playback and the softvol Master all spruce audio goes
+  through (pinning Playback alone left audio quiet, seen on hardware), and
   stored volume at max (a temporary sleep mute aside), and PyUI hides the
   volume setting and indicator (supports_volume, as the Miyoo Mini).
 - Headphones: the rk817's Playback Path is held at SPK_HP, as ArkOS sets it
@@ -67,9 +69,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  spruce/scripts/emu/lib/drastic_functions.sh   |    1 +
  spruce/scripts/helperFunctions.sh             |    1 +
  spruce/scripts/platform/darkmoss/RG351P.cfg   |  199 +
- spruce/scripts/platform/darkmoss/RG351P.sh    |  172 +
+ spruce/scripts/platform/darkmoss/RG351P.sh    |  182 +
  .../platform/darkmoss/dArkMossCommon.sh       |    5 +-
- 19 files changed, 4283 insertions(+), 7 deletions(-)
+ 19 files changed, 4293 insertions(+), 7 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/rg351p.py
  create mode 100644 Emu/NDS/config/drastic-RG351P.cfg
@@ -4339,10 +4341,10 @@ index 00000000..3100db55
 +RA_HOME_VAL="nul"
 diff --git a/spruce/scripts/platform/darkmoss/RG351P.sh b/spruce/scripts/platform/darkmoss/RG351P.sh
 new file mode 100644
-index 00000000..d5948f38
+index 00000000..b4741e44
 --- /dev/null
 +++ b/spruce/scripts/platform/darkmoss/RG351P.sh
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,182 @@
 +#!/bin/sh
 +# Anbernic RG351P device functions. Everything the base OS decides is in
 +# dArkMossCommon.sh; this file holds what is particular to this unit. Board,
@@ -4369,18 +4371,28 @@ index 00000000..d5948f38
 +    EVENT_ARG="-e $EVENT_PATH_READ_INPUTS_SPRUCE"
 +}
 +
-+# Volume is the hardware wheel, after the codec. spruce keeps the codec at
-+# full and stores full, whatever level it is asked for: the setting is hidden
-+# in PyUI (rg351p.py's supports_volume) and nothing here steps it. The one
-+# exception is a temporary mute that is not saved (sleep_helper.sh mutes with
-+# "set_volume 0 false" so waking to shut down is silent, then restores).
++# Volume is the hardware wheel, after the codec. spruce keeps everything in
++# front of it at full and stores full, whatever level it is asked for: the
++# setting is hidden in PyUI (rg351p.py's supports_volume) and nothing here
++# steps it. "Everything" is two controls: the codec's own "Playback" and the
++# softvol "Master" that all of spruce's audio goes through (dArkMossCommon's
++# .asoundrc), which alsa-restore brings back at whatever level it was saved
++# at: pinning only "Playback" left audio quiet with the wheel at max (seen on
++# hardware). Master exists once a stream has opened it; before that the set
++# fails quietly and the next call pins it.
++# The one exception is a temporary mute that is not saved (sleep_helper.sh
++# mutes with "set_volume 0 false" so waking to shut down is silent, then
++# restores).
++RG351P_VOLUME_CONTROLS="Playback Master"
 +set_volume() {
 +    if [ "$1" = "0" ] && [ "${2:-true}" = "false" ]; then
-+        amixer -q sset -M "${VOLUME_CONTROL:-Master}" 0% 2>/dev/null
++        amixer -q sset -M "${VOLUME_CONTROL:-Playback}" 0% 2>/dev/null
 +        log_message "$PLATFORM: codec muted (temporary)"
 +        return 0
 +    fi
-+    amixer -q sset -M "${VOLUME_CONTROL:-Master}" 100% 2>/dev/null
++    for _ctl in $RG351P_VOLUME_CONTROLS; do
++        amixer -q sset -M "$_ctl" 100% 2>/dev/null
++    done
 +    bt_headset_volume 20
 +    apply_playback_path
 +    if [ "${2:-true}" = "true" ]; then

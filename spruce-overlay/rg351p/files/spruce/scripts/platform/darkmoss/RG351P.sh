@@ -24,18 +24,28 @@ set_event_arg_for_idlemon() {
     EVENT_ARG="-e $EVENT_PATH_READ_INPUTS_SPRUCE"
 }
 
-# Volume is the hardware wheel, after the codec. spruce keeps the codec at
-# full and stores full, whatever level it is asked for: the setting is hidden
-# in PyUI (rg351p.py's supports_volume) and nothing here steps it. The one
-# exception is a temporary mute that is not saved (sleep_helper.sh mutes with
-# "set_volume 0 false" so waking to shut down is silent, then restores).
+# Volume is the hardware wheel, after the codec. spruce keeps everything in
+# front of it at full and stores full, whatever level it is asked for: the
+# setting is hidden in PyUI (rg351p.py's supports_volume) and nothing here
+# steps it. "Everything" is two controls: the codec's own "Playback" and the
+# softvol "Master" that all of spruce's audio goes through (dArkMossCommon's
+# .asoundrc), which alsa-restore brings back at whatever level it was saved
+# at: pinning only "Playback" left audio quiet with the wheel at max (seen on
+# hardware). Master exists once a stream has opened it; before that the set
+# fails quietly and the next call pins it.
+# The one exception is a temporary mute that is not saved (sleep_helper.sh
+# mutes with "set_volume 0 false" so waking to shut down is silent, then
+# restores).
+RG351P_VOLUME_CONTROLS="Playback Master"
 set_volume() {
     if [ "$1" = "0" ] && [ "${2:-true}" = "false" ]; then
-        amixer -q sset -M "${VOLUME_CONTROL:-Master}" 0% 2>/dev/null
+        amixer -q sset -M "${VOLUME_CONTROL:-Playback}" 0% 2>/dev/null
         log_message "$PLATFORM: codec muted (temporary)"
         return 0
     fi
-    amixer -q sset -M "${VOLUME_CONTROL:-Master}" 100% 2>/dev/null
+    for _ctl in $RG351P_VOLUME_CONTROLS; do
+        amixer -q sset -M "$_ctl" 100% 2>/dev/null
+    done
     bt_headset_volume 20
     apply_playback_path
     if [ "${2:-true}" = "true" ]; then
