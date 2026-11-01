@@ -1,6 +1,6 @@
-From e9a81c8857677c69c094985914e560b468176e60 Mon Sep 17 00:00:00 2001
+From 51845388b48e74b20c0d30b5b5743a9a704a8e30 Mon Sep 17 00:00:00 2001
 From: MarsInsanity <mazemoyux@gmail.com>
-Date: Sun, 1 Nov 2026 05:37:54 +0000
+Date: Sun, 1 Nov 2026 06:11:07 +0000
 Subject: [PATCH] Add the Anbernic RG351P (dArkMoss rg351p unit)
 
 The RG351P runs dArkMoss's rg351p unit: the rg351 kernel with
@@ -46,16 +46,20 @@ New: platform RG351P.cfg/.sh, PyUI rg351p.py and rg351p-system.json,
 RetroArch defaults and an autoconfig for the pad, DraStic config translated
 from the V10's, first-boot flag. RG351P added next to V10 in
 helperFunctions.sh (ANBERNIC_RG351P), PyUI launch.sh and device_factory.py,
-drastic_functions.sh and the app launchers.
+drastic_functions.sh and the app launchers that still list units (Gallery
+and File Management cover every dArkMoss unit by PLATFORM_FAMILY).
 
-PyUI key mapping checked against this tree's PyUI. Not yet run on hardware.
+Tested on an RG351P (dArkMoss v0.1.1): boot to PyUI, menu controls,
+RetroArch games (buttons, d-pad, stick, Select+B exit), the in-game menu
+and Game Switcher from the stick click, vibration, upright Game Switcher
+images, headphones, and volume at full under the wheel. Not yet tested:
+DraStic, PPSSPP, sleep/wake, PortMaster. The PyUI key mapping is also
+checked by a script against this tree's PyUI.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  App/-FirmwareUpdate-/firmwareUpdate.sh        |    2 +-
  App/AccentColor/launch.sh                     |    2 +-
- App/FileManagement/launch.sh                  |    2 +-
- App/Gallery/launch.sh                         |    2 +-
  App/PixelReader/launch.sh                     |    2 +-
  App/PyUI/launch.sh                            |    2 +-
  .../devices/darkmoss/json/rg351p-system.json  |   10 +
@@ -71,7 +75,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  spruce/scripts/platform/darkmoss/RG351P.cfg   |  199 +
  spruce/scripts/platform/darkmoss/RG351P.sh    |  182 +
  .../platform/darkmoss/dArkMossCommon.sh       |    5 +-
- 19 files changed, 4293 insertions(+), 7 deletions(-)
+ 17 files changed, 4291 insertions(+), 5 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/json/rg351p-system.json
  create mode 100644 App/PyUI/main-ui/devices/darkmoss/rg351p.py
  create mode 100644 Emu/NDS/config/drastic-RG351P.cfg
@@ -108,32 +112,6 @@ index 39fb2acb..07325434 100755
          # Every dArkMoss device, as in App/PyUI/launch.sh. Their PyUI device names don't
          # always match PLATFORM (V10 -> POWKIDDY_V10, A10Mini -> A10MINI, ...), so take
          # the name from device_names, the same source PyUI's launcher uses.
-diff --git a/App/FileManagement/launch.sh b/App/FileManagement/launch.sh
-index 7b0411e9..e2eefa47 100755
---- a/App/FileManagement/launch.sh
-+++ b/App/FileManagement/launch.sh
-@@ -34,7 +34,7 @@ fi
- # GLES window on the Mali blob. The Miniloong Pocket 1 has the same GLES-only
- # Mali-G52 as the RGB30, so it needs the same context or vtree fails to open one.
- case "$PLATFORM" in
--    RGB30|RGB20SX|Miniloong|A10Mini|A10MiniV4|XUMiniM|G350|V10|RG353M)
-+    RGB30|RGB20SX|Miniloong|A10Mini|A10MiniV4|XUMiniM|G350|V10|RG351P|RG353M)
-         export VTREE_GLES=1
-         ;;
- esac
-diff --git a/App/Gallery/launch.sh b/App/Gallery/launch.sh
-index 95985986..b4c09db9 100755
---- a/App/Gallery/launch.sh
-+++ b/App/Gallery/launch.sh
-@@ -48,7 +48,7 @@ else
-             # .gptk on the wrong physical key.
-             export_sdl_gamecontroller_map positional
-             ;;
--        "RGB30"|"RGB20SX"|"Miniloong"|"A10Mini"|"A10MiniV4"|"XUMiniM"|"G350"|"V10"|"RG353M")
-+        "RGB30"|"RGB20SX"|"Miniloong"|"A10Mini"|"A10MiniV4"|"XUMiniM"|"G350"|"V10"|"RG351P"|"RG353M")
-             export LD_LIBRARY_PATH="/mnt/SDCARD/spruce/h700/lib64:$LD_LIBRARY_PATH"
-             ;;
-     esac
 diff --git a/App/PixelReader/launch.sh b/App/PixelReader/launch.sh
 index 1fa1d46f..f05432a4 100644
 --- a/App/PixelReader/launch.sh
@@ -4123,7 +4101,7 @@ index 7ea1f8b8..1215f483 100644
  run_drastic_RG353M()    { run_drastic64 ; }
  
 diff --git a/spruce/scripts/helperFunctions.sh b/spruce/scripts/helperFunctions.sh
-index a804029f..c14be87e 100644
+index 6ac1ef26..e4692c4b 100644
 --- a/spruce/scripts/helperFunctions.sh
 +++ b/spruce/scripts/helperFunctions.sh
 @@ -142,6 +142,7 @@ device_names() {
@@ -4528,10 +4506,10 @@ index 00000000..b4741e44
 +        "input_toggle_slowmotion_btn = \"nul\""
 +}
 diff --git a/spruce/scripts/platform/darkmoss/dArkMossCommon.sh b/spruce/scripts/platform/darkmoss/dArkMossCommon.sh
-index 7890793f..2727f9fd 100644
+index 389ca32b..7454ee76 100644
 --- a/spruce/scripts/platform/darkmoss/dArkMossCommon.sh
 +++ b/spruce/scripts/platform/darkmoss/dArkMossCommon.sh
-@@ -627,6 +627,9 @@ vibrate() {
+@@ -626,6 +626,9 @@ vibrate() {
  # fb0 is a dead shim under DRM, so grab the KMS plane. spruce/bin/ffmpeg is the
  # static build with the kmsgrab demuxer (bin64/ffmpeg has none) and starts in
  # 76ms against Debian's 2.3s; Debian's stays as the fallback.
@@ -4541,7 +4519,7 @@ index 7890793f..2727f9fd 100644
  take_screenshot() {
      screenshot_path="$1"
      [ -n "$screenshot_path" ] || return 1
-@@ -642,7 +645,7 @@ take_screenshot() {
+@@ -641,7 +644,7 @@ take_screenshot() {
  
      if timeout 15 "$_ff" -hide_banner -loglevel error \
          -f kmsgrab -i - \

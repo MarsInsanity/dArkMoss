@@ -13,20 +13,26 @@ spruce's side of the dArkMoss `rg351p` unit. One set of files, two uses:
 files/        the new spruce files, at their paths on the card / in spruceOS
   spruce/scripts/platform/darkmoss/RG351P.cfg, RG351P.sh   platform
   spruce/scripts/platform/darkmoss/RG351P-patch.sh         overlay only
+  spruce/scripts/platform/darkmoss/RG351P-probe.sh         overlay only (bring-up log)
   App/PyUI/main-ui/devices/darkmoss/rg351p.py, json/rg351p-system.json
   RetroArch/platform/retroarch-RG351P.cfg.bak
   RetroArch/.retroarch/autoconfig/udev/OpenSimHardware OSH PB Controller.cfg
   Emu/NDS/config/drastic-RG351P.cfg(.bak)
   spruce/flags/first_boot_RG351P.lock
 make.sh       builds the PR change or the overlay zip from files/
-0001-Add-the-Anbernic-RG351P.patch   the PR, on spruceOS Development 6ca7c2f
+0001-Add-the-Anbernic-RG351P.patch   the PR, on spruceOS Development d892f995
 test_mapping.py   checks rg351p.py's key mapping against a spruceOS PyUI tree
 ```
 
-The shared spruce files only need "RG351P" next to "V10" (six one-line
-edits: `helperFunctions.sh` device name `ANBERNIC_RG351P`, PyUI `launch.sh`
-and `device_factory.py`, `drastic_functions.sh`, and the app launchers).
-`RG351P-patch.sh` is the single definition of those edits:
+The shared spruce files need little: "RG351P" next to "V10" where units are
+listed (`helperFunctions.sh` device name `ANBERNIC_RG351P`, PyUI `launch.sh`
+and `device_factory.py`, `drastic_functions.sh`, and the app launchers that
+still list units; newer spruce covers Gallery and File Management by
+`PLATFORM_FAMILY`), plus one shared hook: an optional `SCREENSHOT_VF` ffmpeg
+filter in dArkMossCommon.sh's `take_screenshot`, for panels that scan out
+rotated (the RG351P sets `transpose=clock`; the V10, XU Mini M and A10 Mini
+V4 can opt in with one line). `RG351P-patch.sh` is the single definition of
+those edits:
 
 - `make.sh spruce` runs it against a spruceOS checkout, so the PR carries the
   edits as plain source changes, and leaves the patcher and its hook out.

@@ -24,13 +24,19 @@ log() {
     echo "$(date '+%F %T') $*" >> "$LOG" 2>/dev/null
 }
 
-# patch FILE ANCHOR_REGEX SED_EXPRESSION
+# patch FILE ANCHOR_REGEX SED_EXPRESSION [COVERED_REGEX]
 # FILE must contain ANCHOR_REGEX; the sed expression is then applied, and the
-# result must name RG351P before it replaces the file.
+# result must name RG351P before it replaces the file. COVERED_REGEX, when
+# given, marks a spruce that no longer lists units in FILE because it covers
+# them all another way (e.g. by PLATFORM_FAMILY): nothing to add there.
 patch() {
     _f="$SD/$1"
     [ -f "$_f" ] || { log "skip $1: not on the card"; return 0; }
     grep -q 'RG351P' "$_f" && return 0
+    if [ -n "$4" ] && ! grep -q "$2" "$_f" && grep -q "$4" "$_f"; then
+        log "covered $1: this spruce handles every dArkMoss unit there"
+        return 0
+    fi
     if ! grep -q "$2" "$_f"; then
         log "skip $1: V10 line not found, RG351P not added"
         return 0
@@ -70,19 +76,23 @@ patch App/PyUI/launch.sh \
     's/"G350" | "V10"/"G350" | "V10" | "RG351P"/'
 patch App/AccentColor/launch.sh \
     '"G350" | "V10"' \
-    's/"G350" | "V10"/"G350" | "V10" | "RG351P"/'
+    's/"G350" | "V10"/"G350" | "V10" | "RG351P"/' \
+    '"darkmoss")'
 patch "App/-FirmwareUpdate-/firmwareUpdate.sh" \
     '"G350"|"V10"' \
     's/"G350"|"V10"/"G350"|"V10"|"RG351P"/'
 patch App/Gallery/launch.sh \
     '"G350"|"V10"' \
-    's/"G350"|"V10"/"G350"|"V10"|"RG351P"/'
+    's/"G350"|"V10"/"G350"|"V10"|"RG351P"/' \
+    '"darkmoss")'
 patch App/PixelReader/launch.sh \
     '"G350"|"V10"' \
-    's/"G350"|"V10"/"G350"|"V10"|"RG351P"/'
+    's/"G350"|"V10"/"G350"|"V10"|"RG351P"/' \
+    '"darkmoss")'
 patch App/FileManagement/launch.sh \
     '|G350|V10|' \
-    's/|G350|V10|/|G350|V10|RG351P|/'
+    's/|G350|V10|/|G350|V10|RG351P|/' \
+    '"darkmoss")'
 
 # take_screenshot: an optional ffmpeg filter from the platform cfg, for panels
 # that scan out rotated (kmsgrab reads the plane as the panel scans it). The
