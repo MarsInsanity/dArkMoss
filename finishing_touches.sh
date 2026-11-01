@@ -224,6 +224,13 @@ unit that needed the rename, do it again after an update.
 Create an empty "darkmoss-debug" file here (see README-logging.txt) to have
 the logs record which panel was detected: look for panel_id and panel_node
 in the kernel command line at the top of dmesg.log.
+
+Headphones
+----------
+Sound moves to the headphones when they are plugged in and back to the
+speaker when they come out. If it works the wrong way round (speaker with
+headphones in, silence without), create an empty file named
+"headphones-invert" here: G80CA boards differ in how they report the jack.
 EOF
 fi
 
@@ -323,6 +330,13 @@ if [[ "$UNIT" != "a10mini" ]] && [[ "$UNIT" != "r36sclone" ]]; then
   sudo chroot Arkbuild/ bash -c "systemctl enable adbd"
 else
   sudo chroot Arkbuild/ bash -c "systemctl disable adbd"
+fi
+
+# R36S clone: nothing else moves the rk817 Playback Path to the headphones (see hpjackd.py).
+if [[ "$UNIT" == "r36sclone" ]]; then
+  sudo install -D -m 0755 scripts/r36sclone/hpjackd.py Arkbuild/usr/local/sbin/hpjackd.py
+  sudo cp scripts/r36sclone/hpjackd.service Arkbuild/etc/systemd/system/
+  sudo chroot Arkbuild/ bash -c "systemctl enable hpjackd"
 fi
 
 # Disable requirement for sudo for setting niceness
