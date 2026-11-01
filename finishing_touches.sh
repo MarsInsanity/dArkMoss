@@ -76,10 +76,12 @@ if [ "$UNIT" == "xumini" ]; then
   # Portrait panel: U-Boot copies the BMP as-is, so the G350's logo is turned 90 degrees
   # clockwise (make-logo.py 480 640 --rotate-cw), the same way as the kernel's fbcon=rotate:1.
   sudo cp logos/xumini/logo.bmp ${mountpoint}/logo.bmp
-elif [ "$UNIT" == "g350" ] || [ "$UNIT" == "r36sclone" ]; then
-  # oakMOSS-style logo from logos/make-logo.py 640 480 (bootlogo.service also shows it);
-  # the R36S clone's panel is 640x480 landscape as well, so it shares the G350's.
+elif [ "$UNIT" == "g350" ]; then
+  # oakMOSS-style logo from logos/make-logo.py 640 480 (bootlogo.service also shows it).
   sudo cp logos/g350/logo.bmp ${mountpoint}/logo.bmp
+elif [ "$UNIT" == "r36sclone" ]; then
+  # Just spruce's tree at half the G350's size, on black: make-logo.py 640 480 --black --no-label --tree-scale 1.
+  sudo cp logos/r36sclone/logo.bmp ${mountpoint}/logo.bmp
 elif [ "$UNIT" == "v10" ]; then
   # 320x480 portrait panel booted with fbcon=rotate:3: logos/make-logo.py 320 480 --rotate-ccw.
   sudo cp logos/v10/logo.bmp ${mountpoint}/logo.bmp
@@ -87,10 +89,8 @@ else
   sudo cp logos/unrotated/dArkMoss.bmp ${mountpoint}/logo.bmp
 fi
 # bootlogo.service's first-boot redraw: that logo plus "Setting up the card" (make-logo.py --status).
-if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ]; then
+if [ "$UNIT" == "g350" ] || [ "$UNIT" == "xumini" ] || [ "$UNIT" == "v10" ] || [ "$UNIT" == "r36sclone" ]; then
   sudo cp logos/${UNIT}/logo-firstboot.bmp ${mountpoint}/
-elif [ "$UNIT" == "r36sclone" ]; then
-  sudo cp logos/g350/logo-firstboot.bmp ${mountpoint}/
 fi
 
 if [ -d "optional" ]; then
