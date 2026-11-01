@@ -18,6 +18,8 @@ set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FILES="$HERE/files"
 PATCHER="spruce/scripts/platform/darkmoss/RG351P-patch.sh"
+# Overlay-only bring-up probe: never part of the spruceOS change.
+PROBE="spruce/scripts/platform/darkmoss/RG351P-probe.sh"
 
 usage() {
     sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
@@ -31,8 +33,9 @@ spruce)
     root="$(cd "$2" && pwd)"
     [ -f "$root/spruce/scripts/helperFunctions.sh" ] || { echo "$root is not a spruceOS checkout" >&2; exit 1; }
 
-    # New files, minus the patcher; RG351P.cfg without its overlay-only block.
-    (cd "$FILES" && find . -type f ! -path "./$PATCHER") | while IFS= read -r f; do
+    # New files, minus the patcher and the probe; RG351P.cfg without its
+    # overlay-only block.
+    (cd "$FILES" && find . -type f ! -path "./$PATCHER" ! -path "./$PROBE") | while IFS= read -r f; do
         mkdir -p "$root/$(dirname "$f")"
         cp "$FILES/$f" "$root/$f"
     done
